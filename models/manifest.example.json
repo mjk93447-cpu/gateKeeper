@@ -1,0 +1,34 @@
+{
+  "bundle_version": "0.1.0-candidate",
+  "status": "candidate",
+  "detector": {
+    "architecture": "YOLOX-Tiny",
+    "input_size": [416, 416],
+    "classes": ["fpcb"],
+    "path": "detector.onnx",
+    "sha256": "REPLACE_AFTER_EXPORT",
+    "pretraining": "COCO",
+    "training_code_commit": "REPLACE_WITH_GIT_SHA",
+    "dataset_version": "REPLACE_WITH_DATASET_VERSION"
+  },
+  "ocr": {
+    "architecture": "PP-OCRv5_mobile_rec",
+    "characters": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "path": "ocr",
+    "sha256": "REPLACE_AFTER_EXPORT",
+    "training_code_commit": "REPLACE_WITH_GIT_SHA",
+    "dataset_version": "REPLACE_WITH_DATASET_VERSION"
+  },
+  "validation": {
+    "detector_recall": null,
+    "exact_code_accuracy": null,
+    "problem_false_accept_rate": null,
+    "p95_latency_ms": null
+  },
+  "approval": {
+    "approved_by": null,
+    "approved_at": null,
+    "recipe_ids": []
+  }
+}
+

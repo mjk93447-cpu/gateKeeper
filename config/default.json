@@ -1,0 +1,23 @@
+{
+  "line_id": "AAM-LINE-01",
+  "station_id": "GATEKEEPER-01",
+  "expected_code": "HJ04",
+  "problem_codes": ["HJ05"],
+  "thresholds": {
+    "detector_confidence": 0.70,
+    "normal_ocr_confidence": 0.90,
+    "problem_ocr_confidence": 0.90
+  },
+  "models": {
+    "detector_path": "models/detector.onnx",
+    "ocr_model_dir": "models/ocr",
+    "detector_input_size": [416, 416]
+  },
+  "plc": {
+    "driver": "simulation",
+    "normal_action": "none",
+    "abnormal_action": "alarm",
+    "problem_action": "alarm_and_reject_request"
+  }
+}
+
