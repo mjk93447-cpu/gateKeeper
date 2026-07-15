@@ -5,7 +5,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-VALID_LABEL = re.compile(r"^[A-Z0-9]+$")
+VALID_LABEL = re.compile(r"^[A-Z0-9]{4}$")
 
 
 def validate(labels_file: Path) -> tuple[list[str], Counter[str]]:
@@ -19,7 +19,9 @@ def validate(labels_file: Path) -> tuple[list[str], Counter[str]]:
             continue
         label = label.strip().upper()
         if not VALID_LABEL.fullmatch(label):
-            errors.append(f"line {line_number}: label must contain only A-Z and 0-9")
+            errors.append(
+                f"line {line_number}: label must contain exactly four A-Z/0-9 characters"
+            )
         if not (labels_file.parent / relative_path).is_file():
             errors.append(f"line {line_number}: missing image '{relative_path}'")
         counts[label] += 1
@@ -39,4 +41,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -20,6 +20,27 @@ inference = [
   "onnxruntime>=1.20,<2",
   "paddleocr>=3.2,<4",
 ]
+runtime = [
+  "numpy>=1.26,<3",
+  "opencv-python-headless>=4.10,<5",
+  "onnxruntime>=1.20,<2",
+  "paddlepaddle>=3.0,<4",
+  "paddleocr>=3.2,<4",
+]
+training = [
+  "ultralytics>=8.3,<9",
+  "paddlepaddle>=3.0,<4",
+  "paddleocr>=3.2,<4",
+  "pillow>=10,<13",
+]
+release = [
+  "pyinstaller>=6,<7",
+  "numpy>=1.26,<3",
+  "opencv-python-headless>=4.10,<5",
+  "onnxruntime>=1.20,<2",
+  "paddlepaddle>=3.0,<4",
+  "paddleocr>=3.2,<4",
+]
 dev = [
   "pytest>=8.3,<9",
   "ruff>=0.9,<1",
@@ -41,4 +62,3 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-

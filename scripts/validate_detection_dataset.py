@@ -12,8 +12,10 @@ def validate(path: Path) -> tuple[list[str], Counter[int]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     images = {item["id"]: item for item in payload.get("images", [])}
     categories = {item["id"]: item["name"] for item in payload.get("categories", [])}
-    if "fpcb" not in {name.lower() for name in categories.values()}:
-        errors.append("categories must include a class named 'fpcb'")
+    required = {"fpcb_surface", "code_roi"}
+    category_names = {name.lower() for name in categories.values()}
+    if not required.issubset(category_names):
+        errors.append("categories must include 'fpcb_surface' and 'code_roi'")
     for annotation in payload.get("annotations", []):
         image_id = annotation.get("image_id")
         category_id = annotation.get("category_id")
@@ -45,4 +47,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
