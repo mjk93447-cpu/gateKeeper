@@ -18,6 +18,7 @@ models/*.onnx
 models/*.pt
 models/*.pdmodel
 models/*.pdiparams
+models/manifest.json
 models/checkpoints/
 models/ocr/
 runs/
