@@ -6,9 +6,9 @@ gateKeeper watches a hot-folder, detects the FPCB/code ROI with a locally
 fine-tuned YOLO26s model, reads the four-character `A-Z0-9` code with
 PaddleOCR `en_PP-OCRv4_mobile_rec`, and produces one of three safe decisions:
 
-- `NORMAL` — green `OK`, no alarm;
-- `ABNORMAL` — yellow `Abnormal`, warning sound;
-- `PROBLEM` — red `Error`, repeating alarm and a simulated/protocol-neutral PLC
+- `NORMAL` (green `OK`), no alarm;
+- `ABNORMAL` (yellow `Abnormal`), warning sound;
+- `PROBLEM` (red `Error`), repeating alarm and a simulated/protocol-neutral PLC
   `RejectRequest`.
 
 Application/model/storage failures are shown as dark-red `System Error` and are

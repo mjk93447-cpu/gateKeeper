@@ -46,9 +46,11 @@ class InspectionPipeline:
             if image is None:
                 raise ValueError(f"unable to read image: {path}")
             detected: DetectionResult = self.detector.detect(image)
-            candidate = next(
-                (item for item in detected.detections if item.label == "code_roi"),
-                detected.best,
+            code_candidates = [
+                item for item in detected.detections if item.label == "code_roi"
+            ]
+            candidate = max(
+                code_candidates, default=detected.best, key=lambda item: item.confidence
             )
             if candidate is None:
                 return self._result(

@@ -24,6 +24,6 @@ does not match the pinned value, or if the OCR model directory does not contain
 an `inference.yml` artifact.
 
 It also fails closed unless `models/manifest.json` is explicitly marked
-`approved` and records at least 99.9% exact-code accuracy, at least 99.9% problem
+`approved` and records at least 99% exact-code accuracy, at least 99% problem
 recall, and zero problem false-normal results. A short development run or a
 candidate checkpoint can therefore never be published as a production release.

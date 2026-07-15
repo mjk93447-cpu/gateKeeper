@@ -1,5 +1,5 @@
 {
-  "bundle_version": "0.1.0-candidate",
+  "bundle_version": "0.2.0-candidate",
   "status": "candidate",
   "detector": {
     "architecture": "YOLO26s",
@@ -27,6 +27,8 @@
   "validation": {
     "detector_recall": null,
     "exact_code_accuracy": null,
+    "problem_recall": null,
+    "problem_false_normal": null,
     "problem_false_accept_rate": null,
     "p95_latency_ms": null
   },

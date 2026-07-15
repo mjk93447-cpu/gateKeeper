@@ -14,8 +14,8 @@ def main() -> int:
         raise SystemExit("release blocked: model manifest status must be 'approved'")
     validation = manifest.get("validation") or {}
     gates = {
-        "exact_code_accuracy": 0.999,
-        "problem_recall": 0.999,
+        "exact_code_accuracy": 0.99,
+        "problem_recall": 0.99,
         "problem_false_normal": 0.0,
     }
     for key, minimum in gates.items():

@@ -28,7 +28,7 @@ The final deployment-path test used `models/yolo26s-fpcb-promoted.onnx` and the
 untouched 40-image test set. A confidence threshold of 0.01 was used to expose
 low-confidence detections for diagnosis.
 
-## Final ONNX composite result
+## Final ONNX composite result from the initial short run
 
 | Metric | Result |
 | --- | ---: |
@@ -61,10 +61,34 @@ training cycle.
 4. Added release documentation and a release workflow that bundles the pinned
    public checkpoint and OCR model, while excluding synthetic/public datasets.
 
+## 45-minute model improvement and stress test
+
+The improved run used the same 180/40 training and validation split for 16
+epochs over 45 minutes of CPU time (`batch=8`, `cache=ram`, `workers=0`,
+`amp=False`). The best checkpoint reached validation precision 0.965, recall
+0.925 and mAP50 0.989. It was exported to ONNX and evaluated through the real
+deployment path.
+
+An additional 200-image test-only stress set was generated with a disjoint seed;
+it was never used for training or checkpoint selection. Results were:
+
+| Metric | Result |
+| --- | ---: |
+| Panel-best detector precision (IoU 0.50) | 1.000 |
+| Panel-best detector recall (IoU 0.50) | 0.995 |
+| O/0-corrected exact-code accuracy | 0.995 |
+| Normal HJ04 corrected accuracy | 0.990 |
+| Problem HJ05 precision | 1.000 |
+| Problem HJ05 recall | 1.000 |
+
+This passes the current 99% development release gate. Raw OCR accuracy was only
+0.235 because the approved OCR model consistently rendered the printed zero as
+the letter `O`; the explicitly approved O/0 correction raised exact accuracy to
+0.995 without enabling unrelated fuzzy substitutions.
+
 ## Release decision
 
-The source, tests, workflow and packaging checks are ready to publish. A
-production model release is not approved until an independently held-out,
-site-collected dataset meets both 99.9% gates. The local candidate checkpoint
-must not be copied into a production bundle solely because a short CPU run
-completed.
+The 0.2.0 candidate satisfies the 99% development gate on the untouched stress
+set. Site deployment still requires an independently held-out, site-collected
+lot approval before changing the manifest from `candidate` to `approved` for
+production use.

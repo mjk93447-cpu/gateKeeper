@@ -121,6 +121,16 @@ class FakeDetector:
         return DetectionResult((Detection("code_roi", 0.99, (0, 0, 10, 10)),))
 
 
+class MultiCandidateDetector:
+    def detect(self, image):
+        return DetectionResult(
+            (
+                Detection("code_roi", 0.71, (0, 0, 4, 4)),
+                Detection("code_roi", 0.98, (2, 2, 10, 10)),
+            )
+        )
+
+
 class FakeOcr:
     def recognize(self, roi):
         return OcrResult("HJ05", 0.99)
@@ -150,6 +160,41 @@ def test_pipeline_returns_problem_without_gpu(tmp_path, monkeypatch) -> None:
     )
     result = pipeline.inspect(image_path, 1)
     assert result.state is DisplayState.PROBLEM
+
+
+def test_pipeline_uses_highest_confidence_code_roi(tmp_path, monkeypatch) -> None:
+    image_path = tmp_path / "panel.png"
+    image_path.write_bytes(b"placeholder")
+
+    class FakeImage:
+        size = 1
+        shape = (10, 10, 3)
+
+        def __getitem__(self, key):
+            return self
+
+    class FakeCv2:
+        IMREAD_COLOR = 1
+
+        @staticmethod
+        def imread(path, mode):
+            return FakeImage()
+
+    class RecordingOcr(FakeOcr):
+        def recognize(self, roi):
+            assert roi is not None
+            return super().recognize(roi)
+
+    monkeypatch.setitem(__import__("sys").modules, "cv2", FakeCv2)
+    pipeline = InspectionPipeline(
+        MultiCandidateDetector(),
+        RecordingOcr(),
+        expected_code="HJ04",
+        problem_codes=frozenset({"HJ05"}),
+    )
+    result = pipeline.inspect(image_path, 1)
+    assert result.state is DisplayState.PROBLEM
+    assert result.detector_confidence == 0.98
 
 
 def test_relative_roi_is_applied_inside_detector_box() -> None:
