@@ -31,6 +31,8 @@ jobs:
             --detector-sha256 "057C61DBD2745F59BD246EFFEBF47A31686E95B0E2263610B0600664E5210FC5" `
             --checkpoint-url "https://huggingface.co/betty0/pcb-defect-detection/resolve/main/best.pt?download=true" `
             --checkpoint-sha256 "9D2D1B6414E2DD9A1BFDD9D24D5C5A79C153DDE03575E9ECB4E2DE69C68A316C"
+      - name: Enforce production approval gates
+        run: uv run python scripts/check_release_gate.py --manifest models/manifest.json
       - name: Build bundle
         run: uv run python scripts/build_release_bundle.py --output dist/gateKeeper-release
       - name: Upload GitHub Release

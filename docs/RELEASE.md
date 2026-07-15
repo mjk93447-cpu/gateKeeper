@@ -22,3 +22,8 @@ It never assumes the current working directory. For source-mode diagnostics,
 The release job fails if either pretrained model is missing, if the detector hash
 does not match the pinned value, or if the OCR model directory does not contain
 an `inference.yml` artifact.
+
+It also fails closed unless `models/manifest.json` is explicitly marked
+`approved` and records at least 99.9% exact-code accuracy, at least 99.9% problem
+recall, and zero problem false-normal results. A short development run or a
+candidate checkpoint can therefore never be published as a production release.
