@@ -1,57 +1,101 @@
-# 데이터와 로컬 학습
+# Manufacturing Junction gateKeeper AI Vision CPU fine-tuning guide
 
-## 1. FPCB ROI detector
+Use this procedure only after a reviewed local dataset and recipe have been
+approved. The installed application contains an offline CPU training runner; it
+does not download packages or models during training.
 
-기본 선택은 YOLOX-Tiny(416×416)입니다. COCO 사전학습 가중치는 feature 초기값으로만 쓰며, 현장 이미지에서 FPCB ROI 한 클래스를 학습합니다.
+## Before training
 
-데이터는 장비/조명/제품/lot 단위로 train/validation/test를 분리해 동일 패널의 연속 프레임이 서로 다른 split에 섞이지 않게 합니다. 다음 변동을 반드시 포함합니다.
+1. Back up `config/code_recipe.json` and confirm every intended normal and
+   problem code is registered.
+2. Prepare detector annotations for `fpcb_surface` and `code_roi`. The optional
+   `defect_roi` class is allowed only when enough independent samples exist.
+3. Prepare OCR labels as `relative-image-path<TAB>FOUR_CHARACTER_CODE`.
+4. Keep every image from one panel, lot, or recipe in exactly one split.
+5. Preserve an independent lot holdout. It is not used to tune thresholds or
+   select the promoted checkpoint.
 
-- 정상 위치와 허용 가능한 위치/회전 편차
-- 반사, 흐림, 노출 변화, 오염과 부분 가림
-- HJ04/HJ05 등 다양한 인쇄와 빈 FPCB
-- 실제로 발생하는 다른 모델, 치구, 작업자 개입 장면
+Use **Image labeling workbench** for local reviewed images. It produces COCO
+rectangles and rectangular masks for `fpcb_surface` and `code_roi`, crops the
+code ROI for OCR, validates the selected registered code, and exports a
+group-separated YOLO dataset. It does not invent labels or accept incomplete
+annotations.
 
-COCO 형식의 class 이름은 `fpcb`로 통일합니다.
+In the application, enter the detector YAML path and checkpoint path in
+**Training progress**. Select **Validate OCR labels** before starting a run.
+The label file must match the registered code recipe. **Start CPU training**
+launches the bundled training executable and displays the latest training output,
+epoch count, and validation graph. **Stop** terminates only the current training
+process; it does not promote a checkpoint.
+
+## Detector
+
+The initial checkpoint is YOLO26s PCB detection. Fine-tune it with local labels
+whose required classes are `fpcb_surface` and `code_roi`; add `defect_roi` only
+when the site has enough independently labelled defect samples.
+
+Do not split adjacent frames randomly. Generate train/validation/test manifests
+grouped by panel, lot and recipe. Keep at least one complete lot as a final
+holdout. The holdout is not used for threshold selection.
 
 ```powershell
-python scripts/validate_detection_dataset.py data/processed/detector/train/annotations.json
-python scripts/training_commands.py detector `
-  --yolox C:\ml\YOLOX `
-  --experiment training/yolox_fpcb.py `
-  --weights C:\ml\weights\yolox_tiny.pth
+python scripts/validate_detection_dataset.py data/processed/detector/annotations.json
+python scripts/training_commands.py yolo26-cpu `
+  --data data/processed/detector/data.yaml `
+  --pretrained models/yolo26s-pcb-best.pt `
+  --imgsz 640 --batch 2 --epochs 100 --patience 20
 ```
 
-`--execute`를 붙이기 전 출력 명령과 경로를 확인합니다. upstream 저장소/가중치 버전은 모델 manifest에 고정해야 합니다.
+The command explicitly uses `device=cpu`, `workers=0`, `amp=False`, disk cache and
+a fixed seed. The best checkpoint is selected using the independent holdout's
+ROI recall and downstream exact-code metrics, not training loss alone.
 
-## 2. OCR recognition
+## OCR
 
-YOLO ROI 안에서 코드 한 줄만 인식하므로 범용 문서 OCR 전체가 아니라 recognition 모델을 파인튜닝합니다. 문자 사전은 우선 `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ`로 제한합니다. 라벨 파일은 PaddleOCR 형식인 `<relative-image-path> TAB <label>`입니다.
-
-```text
-images/000001.png\tHJ04
-images/000002.png\tHJ05
-```
+Use PaddleOCR `en_PP-OCRv4_mobile_rec` with a restricted
+`0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ` dictionary. Labels must contain exactly
+four characters. Validate them before training:
 
 ```powershell
-python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt
-python scripts/training_commands.py ocr `
-  --paddleocr C:\ml\PaddleOCR `
-  --config training/ppocrv5_gatekeeper.yml `
-  --pretrained C:\ml\weights\PP-OCRv5_mobile_rec_pretrained.pdparams
+python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt --recipe config/code_recipe.json
 ```
 
-정상/문제성 코드 이미지를 균형 있게 수집하고, 실제 FPCB 배경·폰트·레이저/잉크 번짐을 모사한 합성 데이터를 보강합니다. HJ04와 HJ05처럼 한 글자만 다른 hard negative를 별도 평가 세트로 유지합니다. 운영 판정에는 fuzzy match를 사용하지 않습니다.
+Include HJ04/HJ05 hard negatives and real variation in exposure, reflection,
+blur, tilt, contamination and print defects. Never place frames from one panel
+in different splits.
 
-## 3. 승인 지표
+## Overfitting controls
 
-전체 평균만 보지 말고 코드별로 다음을 기록합니다.
+- panel/lot/recipe grouped split;
+- image hash duplicate check;
+- fixed seed and recorded dataset manifest;
+- physically plausible augmentation only;
+- early stopping and weight decay;
+- per-class and per-code confusion matrix;
+- holdout evaluation after all threshold tuning;
+- model promotion only through the model manifest with SHA-256.
 
-- detector miss rate 및 ROI IoU/recall
-- exact-code accuracy(문자 정확도가 아님)
-- `HJ04 → HJ05`, `HJ05 → HJ04` 혼동 건수
-- 정상 false reject rate, 문제성 false accept rate
-- p50/p95/p99 end-to-end latency
-- 조명/lot/제품/카메라별 slice metric
+## Promotion checklist
 
-문제성 false accept는 안전 관련 핵심 지표입니다. 목표값은 라인 takt time과 품질팀 위험평가를 반영해 승인 문서에서 수치로 확정합니다.
+Before replacing a live detector, run the composite holdout test using the
+detector's `code_roi` output and the installed PaddleOCR recognition model. The
+promotion record must include the following measurements on the independent
+holdout:
 
+- exact four-character code accuracy;
+- problem-code recall;
+- problem false-normal count;
+- per-code precision and recall, including every registered problem code;
+- detector ROI recall and p95 CPU latency;
+- dataset version, code recipe snapshot, checkpoint hash, and command line.
+
+Do not promote based on training loss, a random image split, or a synthetic-only
+test. The release gate requires at least 99% exact-code accuracy, at least 99%
+problem recall, and zero recorded problem false-normal results, but local site
+approval is still required before use on a production line.
+
+When detector candidates are sparse at a high confidence value, test a lower
+candidate threshold while keeping the final ROI and OCR decision thresholds
+explicit. The live pipeline ranks all retained `code_roi` candidates and passes
+only the highest-confidence candidate to OCR. Never change a threshold solely to
+increase a training metric; repeat the deployed decision-pipeline evaluation.

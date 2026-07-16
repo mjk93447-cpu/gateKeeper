@@ -1,13 +1,21 @@
 # Model registry
 
-운영 모델 바이너리는 Git에 커밋하지 않습니다. 승인된 artifact store에서 내려받아 이 디렉터리에 배치하고 `manifest.json`의 SHA-256과 일치하는지 확인한 뒤 로드합니다.
+Model binaries and production images are excluded from Git to keep the source
+repository usable. Every approved GitHub Release instead includes the detector,
+the CPU fine-tuning checkpoint, and the selected OCR recognition model with a
+hash manifest and source/provenance notices. For a source checkout, copy the
+approved locally fine-tuned YOLO26s detector and OCR model directory here, then
+create `manifest.json` from `manifest.example.json` and replace every placeholder
+hash.
 
 ```text
 models/
-  detector.onnx       현장 FPCB 1-class detector
-  ocr/                현장 코드 recognition model
-  manifest.json       모델 계보, 지표, 승인 정보
+  detector.onnx
+  yolo26s-pcb-pretrained.pt
+  ocr/
+  manifest.json
 ```
 
-공개 COCO YOLOX 가중치는 학습 초기값이며 `detector.onnx`를 대신할 수 없습니다. `manifest.example.json`을 복사해 실제 승인 정보를 채우십시오.
-
+The live worker refuses to start when the detector is missing or its SHA-256 does
+not match the manifest. The detector classes used by the production pipeline are
+`fpcb_surface`, `code_roi`, and optional `defect_roi`.

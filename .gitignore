@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .venv/
+.release-venv/
 venv/
 dist/
 build/
@@ -12,12 +13,21 @@ build/
 # Local/large artifacts
 data/raw/
 data/processed/
+data/synthetic/
+data/public/
 models/*.onnx
+models/*.pt
 models/*.pdmodel
 models/*.pdiparams
+models/manifest.json
 models/checkpoints/
+models/ocr/
 runs/
 logs/
+watch/
+archive/
+overlays/
+review/
 *.log
 
 # Editors / OS
@@ -25,4 +35,3 @@ logs/
 .vscode/
 .DS_Store
 Thumbs.db
-

@@ -1,11 +1,13 @@
-# Training workspace
+# Training configuration
 
-YOLOX와 PaddleOCR upstream 소스는 이 저장소에 복사하지 않고 별도 고정 버전 checkout을 사용합니다. `scripts/training_commands.py`는 실행할 명령을 먼저 출력하며 `--execute`를 명시한 경우에만 학습을 시작합니다.
+Training uses the CPU-only YOLO26 and PaddleOCR runners in `scripts/` and
+`src/gatekeeper/training/`. Upstream source repositories are not copied into
+this project; use pinned package versions from `pyproject.toml`.
 
-프로젝트별 전체 설정 파일은 데이터 수집 후 upstream 기본 설정을 복사해 이 폴더에서 관리합니다.
+Keep project-specific configuration in this directory and preserve the exact
+configuration used for every run under `runs/<run-id>/`. Use relative data roots
+or the `GATEKEEPER_HOME` environment variable; never commit machine-specific
+absolute paths.
 
-- YOLOX: `yolox_fpcb.py`에서 `num_classes=1`, class `fpcb`, 416×416, 현장 COCO split 지정
-- PaddleOCR: PP-OCRv5 mobile English recognition 설정을 기반으로 문자 사전 `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ`와 현장 label 파일 지정
-
-학습 설정에는 절대 경로 대신 환경별 데이터 루트를 사용하고, 실행 시 사용한 최종 설정 사본을 `runs/<run-id>/`에 보존하십시오.
-
+All detector and OCR splits must be grouped by panel, lot, and recipe. The final
+holdout must not be used for threshold selection or model promotion.

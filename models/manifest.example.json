@@ -1,19 +1,24 @@
 {
-  "bundle_version": "0.1.0-candidate",
+  "bundle_version": "0.2.0-candidate",
   "status": "candidate",
   "detector": {
-    "architecture": "YOLOX-Tiny",
-    "input_size": [416, 416],
-    "classes": ["fpcb"],
+    "architecture": "YOLO26s",
+    "input_size": [640, 640],
+    "classes": ["fpcb_surface", "code_roi", "defect_roi"],
     "path": "detector.onnx",
     "sha256": "REPLACE_AFTER_EXPORT",
-    "pretraining": "COCO",
+    "pretraining": "betty0/pcb-defect-detection",
     "training_code_commit": "REPLACE_WITH_GIT_SHA",
-    "dataset_version": "REPLACE_WITH_DATASET_VERSION"
+    "dataset_version": "REPLACE_WITH_DATASET_VERSION",
+    "training_checkpoint": {
+      "path": "yolo26s-pcb-pretrained.pt",
+      "sha256": "REPLACE_AFTER_DOWNLOAD"
+    }
   },
   "ocr": {
-    "architecture": "PP-OCRv5_mobile_rec",
+    "architecture": "en_PP-OCRv4_mobile_rec",
     "characters": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "relative_roi": {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0},
     "path": "ocr",
     "sha256": "REPLACE_AFTER_EXPORT",
     "training_code_commit": "REPLACE_WITH_GIT_SHA",
@@ -22,6 +27,8 @@
   "validation": {
     "detector_recall": null,
     "exact_code_accuracy": null,
+    "problem_recall": null,
+    "problem_false_normal": null,
     "problem_false_accept_rate": null,
     "p95_latency_ms": null
   },
@@ -31,4 +38,3 @@
     "recipe_ids": []
   }
 }
-

@@ -1,0 +1,15 @@
+Manufacturing Junction gateKeeper AI Vision
+Copyright (C) 2026 gateKeeper contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed without any warranty. See LICENSE for the complete
+license text.
+
+Each published release contains the corresponding source archive required for
+offline source access. Third-party packages, model weights, datasets, and
+notices retain their own licenses and redistribution conditions. Their
+provenance and required notices are listed in docs/THIRD_PARTY.md.

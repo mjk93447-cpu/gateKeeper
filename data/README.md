@@ -1,13 +1,18 @@
-# Dataset layout
+# Data policy
 
-원본 생산 이미지는 민감한 대용량 데이터이므로 Git에 포함하지 않습니다.
+Raw production images are sensitive and large. They are intentionally excluded
+from Git and from public release artifacts.
+
+Store local data using the following layout:
 
 ```text
 data/
-  raw/<capture-date>/<line>/<recipe>/
-  processed/detector/{train,val,test}/
-  processed/ocr/{images,train.txt,val.txt,test.txt}
+  raw/
+  processed/
+  manifests/
+  feedback/
 ```
 
-데이터셋 버전은 이미지 자체가 아닌 manifest(상대 경로, 해시, lot/recipe/조명 slice, split)를 기준으로 부여합니다. 동일 패널 또는 연속 burst 프레임은 하나의 split에만 포함합니다.
-
+Dataset versions are defined by a manifest containing relative paths, image
+hashes, panel/lot/recipe metadata, lighting slices, and split membership. Frames
+from the same panel or continuous burst must remain in one split.

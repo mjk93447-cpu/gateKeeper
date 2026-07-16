@@ -1,0 +1,63 @@
+name: Release self-contained Windows bundle
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --extra release --extra training --extra dev
+      - name: Create lean inspection build environment
+        shell: pwsh
+        run: |
+          uv venv .release-venv --python 3.12
+          uv pip install --python .release-venv\Scripts\python.exe -e ".[release]"
+      - run: uv run ruff check .
+      - run: uv run pytest
+      - run: uv run python scripts/validate_english_docs.py
+      - name: Restore the approved model package from the recorded candidate release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release download candidate-v0.2.0 --repo "$env:GITHUB_REPOSITORY" --pattern "gateKeeper.zip" --dir release-input
+          Expand-Archive release-input\gateKeeper.zip release-input\expanded
+          Copy-Item release-input\expanded\gateKeeper\models models -Recurse -Force
+      - name: Enforce production approval gates
+        run: uv run python scripts/check_release_gate.py --manifest models/manifest.json
+      - name: Build bundle
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          .release-venv\Scripts\python.exe scripts/build_release_bundle.py `
+            --output dist\release `
+            --version $version `
+            --training-python "$PWD\.venv\Scripts\python.exe"
+      - name: Build offline installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress --yes
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $source = (Resolve-Path "dist\release\Manufacturing-Junction-gateKeeper-AI-Vision").Path
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$version" "/DSourceDir=$source" "/O$PWD\dist\release" installer\gatekeeper.iss
+      - name: Upload GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: >
+          gh release create "${{ github.ref_name }}"
+          dist/release/Manufacturing-Junction-gateKeeper-AI-Vision.zip
+          dist/release/Manufacturing-Junction-gateKeeper-AI-Vision-Setup-v*.exe
+          --title "Manufacturing Junction gateKeeper AI Vision ${{ github.ref_name }}"
+          --generate-notes

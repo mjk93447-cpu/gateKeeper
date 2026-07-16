@@ -12,6 +12,15 @@ class InspectionState(StrEnum):
     PROBLEM = "PROBLEM"
 
 
+class DisplayState(StrEnum):
+    """State presented to the operator, including infrastructure failures."""
+
+    NORMAL = "NORMAL"
+    ABNORMAL = "ABNORMAL"
+    PROBLEM = "PROBLEM"
+    SYSTEM_ERROR = "SYSTEM_ERROR"
+
+
 @dataclass(frozen=True, slots=True)
 class Thresholds:
     detector_confidence: float = 0.70
@@ -49,6 +58,26 @@ class Decision:
     recognized_code: str | None
     detector_confidence: float
     ocr_confidence: float
+    corrected_code: str | None
     reason: str
     decided_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
+
+@dataclass(frozen=True, slots=True)
+class InspectionResult:
+    """Immutable result passed from the worker to UI, alarms and PLC adapters."""
+
+    panel_id: str
+    sequence_id: int
+    state: DisplayState
+    expected_code: str
+    recognized_code: str | None
+    detector_confidence: float
+    ocr_confidence: float
+    image_path: str
+    model_version: str
+    latency_ms: float
+    reason: str
+    roi_box: tuple[int, int, int, int] | None = None
+    corrected_code: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

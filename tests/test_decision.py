@@ -52,7 +52,23 @@ def test_normal_code_cannot_be_registered_as_problem() -> None:
         DecisionEngine().decide(make_input(problem_codes=frozenset({"HJ04"})))
 
 
-def test_problem_code_matching_is_exact_not_fuzzy() -> None:
-    result = DecisionEngine().decide(make_input(ocr_text="HJO5"))
+def test_unapproved_problem_code_fuzzy_match_is_rejected() -> None:
+    result = DecisionEngine().decide(make_input(ocr_text="HJ15"))
     assert result.state is InspectionState.ABNORMAL
 
+
+@pytest.mark.parametrize(
+    ("ocr_text", "expected_state", "corrected"),
+    [("HJO4", InspectionState.NORMAL, "HJ04"), ("HJO5", InspectionState.PROBLEM, "HJ05")],
+)
+def test_site_approved_o_zero_correction(
+    ocr_text: str, expected_state: InspectionState, corrected: str
+) -> None:
+    result = DecisionEngine().decide(make_input(ocr_text=ocr_text))
+    assert result.state is expected_state
+    assert result.corrected_code == corrected
+
+
+def test_non_o_zero_fuzzy_correction_remains_disabled() -> None:
+    result = DecisionEngine().decide(make_input(ocr_text="HJO6"))
+    assert result.state is InspectionState.ABNORMAL

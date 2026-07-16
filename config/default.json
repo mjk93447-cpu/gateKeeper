@@ -1,17 +1,50 @@
 {
-  "line_id": "AAM-LINE-01",
-  "station_id": "GATEKEEPER-01",
+  "line_id": "LINE-01",
+  "station_id": "STATION-01",
   "expected_code": "HJ04",
   "problem_codes": ["HJ05"],
+  "code_policy": {
+    "length": 4,
+    "equivalent_characters": [["O", "0"]]
+  },
   "thresholds": {
-    "detector_confidence": 0.70,
-    "normal_ocr_confidence": 0.90,
-    "problem_ocr_confidence": 0.90
+    "detection_candidate_confidence": 0.01,
+    "detector_confidence": 0.01,
+    "normal_ocr_confidence": 0.80,
+    "problem_ocr_confidence": 0.80
+  },
+  "watch": {
+    "enabled": false,
+    "input_dir": "watch",
+    "archive_dir": "archive",
+    "poll_seconds": 0.25,
+    "stable_checks": 2
   },
   "models": {
     "detector_path": "models/detector.onnx",
+    "detector_checkpoint": "betty0/pcb-defect-detection",
+    "ocr_model": "en_PP-OCRv4_mobile_rec",
     "ocr_model_dir": "models/ocr",
-    "detector_input_size": [416, 416]
+    "detector_input_size": [640, 640],
+    "ocr_relative_roi": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    },
+    "manifest": "models/manifest.json"
+  },
+  "logging": {
+    "sqlite_path": "logs/gatekeeper.sqlite3",
+    "jsonl_path": "logs/inspection.jsonl",
+    "overlay_dir": "overlays"
+  },
+  "alarm": {
+    "enabled": true,
+    "repeat_seconds": 1.5,
+    "abnormal_wav": "assets/abnormal.wav",
+    "problem_wav": "assets/problem.wav",
+    "system_error_wav": "assets/system_error.wav"
   },
   "plc": {
     "driver": "simulation",
@@ -20,4 +53,3 @@
     "problem_action": "alarm_and_reject_request"
   }
 }
-
