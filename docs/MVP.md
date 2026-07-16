@@ -1,4 +1,4 @@
-# gateKeeper CPU MVP
+# Manufacturing Junction gateKeeper AI Vision CPU MVP
 
 ## Runtime
 

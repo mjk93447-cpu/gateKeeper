@@ -28,17 +28,32 @@ def copy_required(source: Path, destination: Path) -> None:
         shutil.copy2(source, destination)
 
 
-def build_executable(root: Path, stage: Path) -> None:
-    separator = ";" if sys.platform == "win32" else ":"
+PRODUCT_NAME = "Manufacturing Junction gateKeeper AI Vision"
+PRODUCT_SLUG = "Manufacturing-Junction-gateKeeper-AI-Vision"
+TRAINING_RUNNER = "Manufacturing Junction gateKeeper Training"
+
+
+def run_pyinstaller(
+    python_executable: str,
+    root: Path,
+    stage: Path,
+    name: str,
+    entrypoint: Path,
+    collect_all: list[str],
+    *,
+    onefile: bool = False,
+    exclude: list[str] | None = None,
+    collect_submodules: list[str] | None = None,
+) -> None:
     command = [
-        sys.executable,
+        python_executable,
         "-m",
         "PyInstaller",
         "--noconfirm",
         "--clean",
-        "--onedir",
+        "--onefile" if onefile else "--onedir",
         "--name",
-        "gateKeeper",
+        name,
         "--paths",
         str(root / "src"),
         "--distpath",
@@ -47,33 +62,98 @@ def build_executable(root: Path, stage: Path) -> None:
         str(stage.parent / "pyinstaller-work"),
         "--specpath",
         str(stage.parent / "pyinstaller-spec"),
-        "--add-data",
-        f"{root / 'config'}{separator}config",
-        "--add-data",
-        f"{root / 'docs'}{separator}docs",
-        "--add-data",
-        f"{root / 'models'}{separator}models",
-        "--add-data",
-        f"{root / 'plugins'}{separator}plugins",
-        "--collect-all",
-        "paddleocr",
-        "--collect-all",
-        "paddlex",
-        str(root / "src" / "gatekeeper" / "__main__.py"),
+        str(entrypoint),
     ]
+    for package in collect_all:
+        command.extend(["--collect-all", package])
+    for package in collect_submodules or []:
+        command.extend(["--collect-submodules", package])
+    for package in exclude or []:
+        command.extend(["--exclude-module", package])
     subprocess.run(command, check=True, cwd=root)
-    built = stage.parent / "pyinstaller-dist" / "gateKeeper"
+    suffix = ".exe" if sys.platform == "win32" and onefile else ""
+    built = stage.parent / "pyinstaller-dist" / f"{name}{suffix}"
     copy_required(built, stage)
+
+
+def build_executables(root: Path, stage: Path, training_python: str) -> None:
+    run_pyinstaller(
+        sys.executable,
+        root,
+        stage,
+        PRODUCT_NAME,
+        root / "src" / "gatekeeper" / "__main__.py",
+        [],
+        exclude=["matplotlib", "pandas", "pytest", "tensorflow", "torch", "ultralytics"],
+        collect_submodules=["paddleocr"],
+    )
+    run_pyinstaller(
+        training_python,
+        root,
+        stage,
+        TRAINING_RUNNER,
+        root / "src" / "gatekeeper" / "training" / "embedded_runner.py",
+        ["ultralytics"],
+        onefile=True,
+    )
+
+
+def copy_release_models(root: Path, stage: Path) -> None:
+    source = root / "models"
+    destination = stage / "models"
+    for filename in ("detector.onnx", "yolo26s-pcb-pretrained.pt", "manifest.json"):
+        copy_required(source / filename, destination / filename)
+    selected_ocr = source / "ocr" / "official_models" / "en_PP-OCRv4_mobile_rec"
+    if not selected_ocr.is_dir():
+        matches = sorted((source / "ocr").glob("**/en_PP-OCRv4_mobile_rec/inference.yml"))
+        if not matches:
+            raise FileNotFoundError("the en_PP-OCRv4_mobile_rec OCR model is required")
+        selected_ocr = matches[0].parent
+    copy_required(selected_ocr, destination / "ocr" / "en_PP-OCRv4_mobile_rec")
+    shutil.rmtree(destination / "ocr" / "en_PP-OCRv4_mobile_rec" / ".cache", ignore_errors=True)
+
+
+def add_corresponding_source(root: Path, stage: Path, version: str) -> None:
+    source = stage / "source"
+    source.mkdir(parents=True, exist_ok=True)
+    archive = source / f"{PRODUCT_SLUG}-source-v{version}.zip"
+    try:
+        subprocess.run(
+            ["git", "archive", "--format=zip", f"--output={archive}", "HEAD"],
+            check=True,
+            cwd=root,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError("unable to create the required corresponding-source archive") from exc
+    (source / "SOURCE_OFFER.txt").write_text(
+        "This installer includes the release-specific corresponding source archive.\n"
+        "See LICENSE and NOTICE for the AGPL-3.0-or-later terms.\n",
+        encoding="utf-8",
+    )
+
+
+def set_bundle_version(stage: Path, version: str) -> None:
+    manifest = stage / "models" / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["bundle_version"] = version
+    manifest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build a self-contained gateKeeper release bundle")
     parser.add_argument("--output", type=Path, default=Path("dist/gateKeeper-bundle"))
+    parser.add_argument("--version", default="1.0.0")
+    parser.add_argument(
+        "--training-python",
+        default=sys.executable,
+        help="Python interpreter with the offline CPU training dependencies installed",
+    )
     parser.add_argument("--skip-exe", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     output = args.output if args.output.is_absolute() else root / args.output
-    stage = output / "gateKeeper"
+    version = args.version.removeprefix("v")
+    stage = output / PRODUCT_SLUG
     if output.exists():
         shutil.rmtree(output)
     stage.mkdir(parents=True)
@@ -92,11 +172,15 @@ def main() -> int:
         raise FileNotFoundError("models/manifest.json is required in every release")
 
     if not args.skip_exe:
-        build_executable(root, stage)
+        build_executables(root, stage, args.training_python)
     copy_required(root / "config", stage / "config")
     copy_required(root / "docs", stage / "docs")
-    copy_required(root / "models", stage / "models")
+    copy_release_models(root, stage)
+    set_bundle_version(stage, version)
     copy_required(root / "plugins", stage / "plugins")
+    copy_required(root / "LICENSE", stage / "LICENSE")
+    copy_required(root / "NOTICE", stage / "NOTICE")
+    add_corresponding_source(root, stage, version)
     (stage / "watch").mkdir()
     (stage / "archive").mkdir()
     (stage / "logs").mkdir()
@@ -115,7 +199,8 @@ def main() -> int:
     (stage / "BUILD_MANIFEST.json").write_text(
         json.dumps(
             {
-                "product": "gateKeeper",
+                "product": PRODUCT_NAME,
+                "version": version,
                 "created_at": datetime.now(UTC).isoformat(),
                 "self_contained": True,
                 "relative_path_root": ".",
@@ -125,7 +210,7 @@ def main() -> int:
         ),
         encoding="utf-8",
     )
-    archive = shutil.make_archive(str(output / "gateKeeper"), "zip", root_dir=stage)
+    archive = shutil.make_archive(str(output / PRODUCT_SLUG), "zip", root_dir=stage)
     print(f"created {archive}")
     return 0
 

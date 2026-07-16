@@ -1,6 +1,6 @@
 # Safety and fail-safe behavior
 
-gateKeeper never substitutes for the machine safety PLC. Its PC-side behavior is
+Manufacturing Junction gateKeeper AI Vision never substitutes for the machine safety PLC. Its PC-side behavior is
 limited to classification, operator alarms, audit events and a protocol-neutral
 `RejectRequest`.
 

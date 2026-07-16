@@ -29,6 +29,10 @@ class RuntimePaths:
         return self.path("config", "default.json")
 
     @property
+    def code_recipe(self) -> Path:
+        return self.path("config", "code_recipe.json")
+
+    @property
     def models(self) -> Path:
         return self.path("models")
 
@@ -55,3 +59,7 @@ class RuntimePaths:
     @property
     def plugins(self) -> Path:
         return self.path("plugins")
+
+    @property
+    def training_runner(self) -> Path:
+        return self.path("Manufacturing Junction gateKeeper Training.exe")

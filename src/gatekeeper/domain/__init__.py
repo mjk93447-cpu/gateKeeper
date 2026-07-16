@@ -1,3 +1,4 @@
+from gatekeeper.domain.code_recipe import CodeRecipe
 from gatekeeper.domain.decision import DecisionEngine
 from gatekeeper.domain.models import (
     Decision,
@@ -11,6 +12,7 @@ from gatekeeper.domain.models import (
 __all__ = [
     "Decision",
     "DecisionEngine",
+    "CodeRecipe",
     "DisplayState",
     "InspectionInput",
     "InspectionResult",

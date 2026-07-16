@@ -1,6 +1,6 @@
 {
-  "line_id": "AAM-LINE-01",
-  "station_id": "GATEKEEPER-01",
+  "line_id": "LINE-01",
+  "station_id": "STATION-01",
   "expected_code": "HJ04",
   "problem_codes": ["HJ05"],
   "code_policy": {
@@ -8,9 +8,10 @@
     "equivalent_characters": [["O", "0"]]
   },
   "thresholds": {
-    "detector_confidence": 0.70,
-    "normal_ocr_confidence": 0.90,
-    "problem_ocr_confidence": 0.90
+    "detection_candidate_confidence": 0.01,
+    "detector_confidence": 0.01,
+    "normal_ocr_confidence": 0.80,
+    "problem_ocr_confidence": 0.80
   },
   "watch": {
     "enabled": false,

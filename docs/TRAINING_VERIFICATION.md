@@ -7,7 +7,7 @@ used by the live worker.
 
 ```powershell
 python scripts/validate_detection_dataset.py data/processed/detector/annotations.json
-python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt
+python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt --recipe config/code_recipe.json
 python scripts/verify_training.py `
   --data data/processed/detector/data.yaml `
   --pretrained models/yolo26s-pcb-best.pt `
@@ -38,3 +38,8 @@ when the independent lot holdout meets all of the following:
 Record the dataset version, command line, package lock, model hash, and holdout
 metrics in the model manifest. The live worker refuses unverified or hash-mismatched
 detectors.
+
+For the installed offline application, enter the same paths in **Training
+progress**, select **Validate OCR labels**, and start CPU training only after the
+recipe validation succeeds. The application launches the bundled CPU runner and
+shows its output and results graph; stopping a run never promotes weights.

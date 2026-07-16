@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,13 +12,21 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
-from gatekeeper.training.cpu_runner import CpuTrainingConfig, build_yolo26_command
+from gatekeeper.domain.code_recipe import CodeRecipe
+from gatekeeper.training.code_labels import validate_ocr_labels
+from gatekeeper.training.cpu_runner import (
+    CpuTrainingConfig,
+    build_embedded_training_command,
+    build_yolo26_command,
+)
 
 
 class MetricGraph(QWidget):
@@ -55,12 +64,31 @@ class MetricGraph(QWidget):
 
 
 class TrainingView(QGroupBox):
-    def __init__(self, root: Path | None = None) -> None:
+    def __init__(
+        self,
+        root: Path | None = None,
+        recipe_path: Path | None = None,
+        training_runner: Path | None = None,
+    ) -> None:
         super().__init__("Training progress")
-        metrics_path = (root or Path.cwd()) / "runs/gatekeeper/yolo26s_fpcb_cpu/results.csv"
+        project_root = root or Path.cwd()
+        metrics_path = project_root / "runs/gatekeeper/yolo26s_fpcb_cpu/results.csv"
+        self.recipe_path = recipe_path or project_root / "config/code_recipe.json"
+        self.training_runner = training_runner
         self.path = QLineEdit(str(metrics_path))
-        self.data_yaml = QLineEdit(str((root or Path.cwd()) / "data/processed/detector/data.yaml"))
-        self.pretrained = QLineEdit(str((root or Path.cwd()) / "models/yolo26s-pcb-best.pt"))
+        self.data_yaml = QLineEdit(str(project_root / "data/processed/detector/data.yaml"))
+        self.pretrained = QLineEdit(str(project_root / "models/yolo26s-pcb-best.pt"))
+        self.ocr_labels = QLineEdit(str(project_root / "data/processed/ocr/train.txt"))
+        self.recipe_summary = QLabel()
+        self.epochs = QSpinBox()
+        self.epochs.setRange(1, 10000)
+        self.epochs.setValue(100)
+        self.batch = QSpinBox()
+        self.batch.setRange(1, 8)
+        self.batch.setValue(2)
+        self.patience = QSpinBox()
+        self.patience.setRange(1, 1000)
+        self.patience.setValue(20)
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self._read_output)
         self.process.readyReadStandardError.connect(self._read_output)
@@ -74,6 +102,8 @@ class TrainingView(QGroupBox):
         self.graph = MetricGraph()
         refresh = QPushButton("Refresh metrics")
         refresh.clicked.connect(self.refresh)
+        validate_labels = QPushButton("Validate OCR labels")
+        validate_labels.clicked.connect(self.validate_labels)
         self.start_button = QPushButton("Start CPU training")
         self.start_button.clicked.connect(self.start_training)
         self.stop_button = QPushButton("Stop")
@@ -89,25 +119,93 @@ class TrainingView(QGroupBox):
         path_row = QHBoxLayout()
         path_row.addWidget(self.path, 1)
         path_row.addWidget(refresh)
+        recipe_row = QHBoxLayout()
+        recipe_row.addWidget(QLabel("OCR labels"))
+        recipe_row.addWidget(self.ocr_labels, 1)
+        recipe_row.addWidget(validate_labels)
+        options_row = QHBoxLayout()
+        options_row.addWidget(QLabel("Epochs"))
+        options_row.addWidget(self.epochs)
+        options_row.addWidget(QLabel("Batch"))
+        options_row.addWidget(self.batch)
+        options_row.addWidget(QLabel("Early-stop patience"))
+        options_row.addWidget(self.patience)
+        options_row.addStretch()
         layout = QVBoxLayout(self)
         layout.addLayout(training_row)
         layout.addLayout(path_row)
+        layout.addWidget(self.recipe_summary)
+        layout.addLayout(recipe_row)
+        layout.addLayout(options_row)
         layout.addWidget(self.progress)
         layout.addWidget(self.summary)
         layout.addWidget(self.graph)
+        self.refresh_recipe_summary()
 
     def start_training(self) -> None:
+        label_path = Path(self.ocr_labels.text())
+        if label_path.is_file() and not self._labels_are_valid(label_path):
+            return
         config = CpuTrainingConfig(
             data_yaml=Path(self.data_yaml.text()),
             pretrained=Path(self.pretrained.text()),
             output_dir=Path(self.path.text()).parent.parent,
+            epochs=self.epochs.value(),
+            batch=self.batch.value(),
+            patience=self.patience.value(),
         )
-        command = build_yolo26_command(config)
+        if getattr(sys, "frozen", False):
+            if self.training_runner is None or not self.training_runner.is_file():
+                QMessageBox.critical(
+                    self,
+                    "Training runner unavailable",
+                    "The offline CPU training executable is missing from this installation.",
+                )
+                return
+            command = build_embedded_training_command(self.training_runner, config)
+        else:
+            command = build_yolo26_command(config)
         self.process.start(command[0], command[1:])
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.summary.setText("CPU training started")
         self.refresh_timer.start()
+
+    def refresh_recipe_summary(self) -> None:
+        try:
+            recipe = CodeRecipe.load(self.recipe_path)
+            self.recipe_summary.setText(
+                "Code recipe: normal="
+                + ", ".join(recipe.normal_codes)
+                + " | problem="
+                + (", ".join(recipe.problem_codes) or "none")
+            )
+        except (OSError, ValueError, TypeError) as exc:
+            self.recipe_summary.setText(f"Code recipe error: {exc}")
+
+    def _labels_are_valid(self, labels: Path) -> bool:
+        try:
+            recipe = CodeRecipe.load(self.recipe_path)
+            errors, counts = validate_ocr_labels(labels, recipe.all_codes)
+        except (OSError, ValueError, TypeError) as exc:
+            QMessageBox.critical(self, "OCR label validation failed", str(exc))
+            return False
+        if errors:
+            QMessageBox.warning(self, "OCR label validation failed", "\n".join(errors[:10]))
+            self.summary.setText(f"OCR labels rejected: {len(errors)} issue(s)")
+            return False
+        self.summary.setText(f"OCR labels valid: {sum(counts.values())} samples")
+        return True
+
+    def validate_labels(self) -> None:
+        labels = Path(self.ocr_labels.text())
+        if not labels.is_file():
+            QMessageBox.warning(self, "OCR label validation", f"File not found: {labels}")
+            return
+        if self._labels_are_valid(labels):
+            QMessageBox.information(
+                self, "OCR label validation", "Labels match the active code recipe."
+            )
 
     def stop_training(self) -> None:
         if self.process.state() != QProcess.ProcessState.NotRunning:

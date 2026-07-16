@@ -92,3 +92,61 @@ The 0.2.0 candidate satisfies the 99% development gate on the untouched stress
 set. Site deployment still requires an independently held-out, site-collected
 lot approval before changing the manifest from `candidate` to `approved` for
 production use.
+
+## Version 1.0.0 release-candidate revalidation
+
+The following revalidation was executed on the same 200-image development-only
+stress holdout after the label workbench, grouped YOLO exporter, offline training
+runner, and deployed decision settings were added. No synthetic or public image
+is included in the installer or release ZIP.
+
+| Step | Executed evidence |
+|---|---|
+| UI labeling | Three panel images were saved through the UI into COCO rectangles, rectangular masks, OCR crops, OCR labels, and three separate panel/lot groups. |
+| UI dataset export | The UI exporter created YOLO train/validation/test folders and a group manifest. Detection-label, OCR-label, and split validation completed successfully. |
+| UI CPU training | One epoch was launched from **Training progress** with batch 2, CPU device, workers 0, AMP disabled, and patience 1. It completed with exit code 0, created `results.csv`, `best.pt`, `last.pt`, validation images, and a graph. Peak observed process memory was approximately 1.9 GB. |
+| Deployed detector/OCR evaluation | 200 test images were evaluated through ONNX code ROI detection, PaddleOCR recognition, O/0 correction, and the decision engine. |
+| Automated safety scenarios | Unit and UI checks covered normal/problem/abnormal decisions, O/0 correction, missing ROI, malformed OCR, duplicate files, archive routing, out-of-order result protection, PLC idempotency, code-recipe collision rejection, label validation, and group leakage validation. |
+
+### Defect found and corrected
+
+The first deployed re-run used the former detector confidence value of `0.70`.
+It produced only 72% panel-best code-ROI recall and 68% `HJ05` recall. The
+diagnostic run had used `0.01`, so this exposed a configuration mismatch between
+evaluation and the live worker.
+
+The application now separates the candidate detector threshold from the final
+ROI decision threshold. The release development settings are candidate `0.01`,
+final ROI `0.01`, and OCR `0.80`; these settings are displayed in the UI and
+must be revalidated with a site holdout before line use.
+
+### Deployed decision-pipeline result after correction
+
+| Metric | Result |
+| --- | ---: |
+| Images | 200 |
+| Normal exact-code accuracy | 1.000 |
+| Problem code recall | 1.000 |
+| Problem false-normal count | 0 |
+| p50 latency | 237 ms |
+| p95 latency | 378 ms |
+
+This satisfies the software release gate on the recorded development holdout.
+It does not certify a factory deployment: production approval still requires an
+independent, site-collected lot holdout and the approved local threshold record.
+
+## Offline package verification
+
+The release staging directory was assembled with all runtime paths relative to
+the installation root. It contained the main application, the separate
+CPU-training runner, the ONNX detector, the fine-tuning checkpoint, the
+PaddleOCR recognition model, default code recipe, English documentation,
+license notices, plugins directory, and an AGPL source archive. The release
+workflow rebuilds that archive from the tagged commit before publication.
+
+The staged main application was started with the Qt offscreen platform and
+remained running for 12 seconds without an application exception. The packaged
+training runner returned its CPU training command-line help successfully. The
+ZIP was created at 702.7 MB; the staged, uncompressed directory was 1.06 GB;
+and the Windows x64 Inno Setup installer compiled successfully at 610.5 MB.
+Synthetic and public development data were excluded from all three artifacts.

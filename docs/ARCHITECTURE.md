@@ -1,4 +1,4 @@
-# gateKeeper architecture
+# Manufacturing Junction gateKeeper AI Vision architecture
 
 ```text
 hot-folder -> stability/duplicate guard -> YOLO26s ONNX CPU detector

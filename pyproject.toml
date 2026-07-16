@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gatekeeper-aam"
-version = "0.2.0"
-description = "Windows vision gate for OLED AAM panel model-code inspection"
+version = "1.0.0"
+description = "Manufacturing Junction gateKeeper AI Vision for OLED AAM panel model-code inspection"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = []
@@ -29,11 +29,13 @@ runtime = [
 ]
 training = [
   "ultralytics>=8.3,<9",
+  "lap>=0.5.12,<1",
   "paddlepaddle>=3.0,<4",
   "paddleocr>=3.2,<4",
   "pillow>=10,<13",
 ]
 release = [
+  "PySide6>=6.8,<7",
   "pyinstaller>=6,<7",
   "numpy>=1.26,<3",
   "opencv-python-headless>=4.10,<5",

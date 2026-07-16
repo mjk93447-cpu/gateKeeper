@@ -38,3 +38,29 @@ def build_yolo26_command(config: CpuTrainingConfig) -> list[str]:
         f"project={config.output_dir}",
         "name=yolo26s_fpcb_cpu",
     ]
+
+
+def build_embedded_training_command(executable: Path, config: CpuTrainingConfig) -> list[str]:
+    """Build the command used by the bundled offline training executable."""
+
+    return [
+        str(executable),
+        "--data",
+        str(config.data_yaml),
+        "--pretrained",
+        str(config.pretrained),
+        "--output",
+        str(config.output_dir),
+        "--image-size",
+        str(config.image_size),
+        "--epochs",
+        str(config.epochs),
+        "--batch",
+        str(config.batch),
+        "--patience",
+        str(config.patience),
+        "--workers",
+        str(config.workers),
+        "--seed",
+        str(config.seed),
+    ]

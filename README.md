@@ -1,4 +1,4 @@
-# gateKeeper
+# Manufacturing Junction gateKeeper AI Vision
 
 CPU-only Windows MVP for OLED AAM FPCB model-code inspection.
 
@@ -24,8 +24,11 @@ uv pip install -e ".[desktop,runtime,dev]"
 python -m gatekeeper
 ```
 
-The application starts in simulation mode. Use the controls to exercise HJ04,
-HJ05 and uncertain OCR results. Live hot-folder mode requires a hash-pinned
+The application starts in simulation mode. Use **Manage code recipe** to add,
+edit, or delete registered normal and problem codes. The installed defaults
+remain normal `HJ04` and problem `HJ05`; the selected normal code is used for
+the next inspection and the same registry validates OCR training labels. Live
+hot-folder mode requires a hash-pinned
 local model manifest at `models/manifest.json`, `models/detector.onnx`, and the
 PaddleOCR model directory.
 
@@ -33,7 +36,7 @@ PaddleOCR model directory.
 
 ```powershell
 python scripts/validate_detection_dataset.py data/processed/detector/annotations.json
-python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt
+python scripts/validate_ocr_dataset.py data/processed/ocr/train.txt --recipe config/code_recipe.json
 python scripts/training_commands.py yolo26-cpu `
   --data data/processed/detector/data.yaml `
   --pretrained models/yolo26s-pcb-best.pt
@@ -48,8 +51,17 @@ independent lot holdout. See [docs/TRAINING.md](docs/TRAINING.md).
 - [Architecture](docs/ARCHITECTURE.md)
 - [Operator guide](docs/OPERATOR_GUIDE.md)
 - [PLC integration contract](docs/PLC_INTEGRATION.md)
+- [Composite test plan](docs/COMPOSITE_TEST_PLAN.md)
 - [Model and dependency licenses](docs/MODEL_LICENSES.md)
 
-The repository does not contain model binaries, production images, or physical
-PLC addresses. Those artifacts remain local and must be approved and hash-pinned
-before deployment.
+## License and source availability
+
+gateKeeper source code and its release-specific corresponding source are
+licensed under the GNU Affero General Public License v3.0 or later. See
+[LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party dependencies and pretrained
+models keep their own licenses and provenance requirements; see
+[docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
+
+Production images, physical PLC addresses, and site-specific training data are
+not published. Release model artifacts must be approved and hash-pinned before
+deployment.

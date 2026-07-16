@@ -1,9 +1,12 @@
 # Model registry
 
-Model binaries are local artifacts and are intentionally excluded from Git.
-Copy the approved, locally fine-tuned YOLO26s detector and OCR model directory
-here, then create `manifest.json` from `manifest.example.json` and replace every
-placeholder hash.
+Model binaries and production images are excluded from Git to keep the source
+repository usable. Every approved GitHub Release instead includes the detector,
+the CPU fine-tuning checkpoint, and the selected OCR recognition model with a
+hash manifest and source/provenance notices. For a source checkout, copy the
+approved locally fine-tuned YOLO26s detector and OCR model directory here, then
+create `manifest.json` from `manifest.example.json` and replace every placeholder
+hash.
 
 ```text
 models/
