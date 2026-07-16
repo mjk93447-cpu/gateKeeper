@@ -32,7 +32,13 @@ jobs:
         run: |
           gh release download candidate-v0.2.0 --repo "$env:GITHUB_REPOSITORY" --pattern "gateKeeper.zip" --dir release-input
           Expand-Archive release-input\gateKeeper.zip release-input\expanded
-          Copy-Item release-input\expanded\gateKeeper\models models -Recurse -Force
+          $modelDirectory = Get-ChildItem release-input\expanded -Directory -Recurse |
+            Where-Object { $_.Name -eq "models" } |
+            Select-Object -First 1
+          if ($null -eq $modelDirectory) {
+            throw "The candidate release ZIP does not contain a models directory."
+          }
+          Copy-Item "$($modelDirectory.FullName)\*" models -Recurse -Force
       - name: Enforce production approval gates
         run: uv run python scripts/check_release_gate.py --manifest models/manifest.json
       - name: Build bundle
