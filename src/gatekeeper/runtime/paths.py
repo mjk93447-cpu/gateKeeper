@@ -33,6 +33,10 @@ class RuntimePaths:
         return self.path("config", "code_recipe.json")
 
     @property
+    def frame_gate_background(self) -> Path:
+        return self.path("config", "frame_gate_empty_background.npy")
+
+    @property
     def models(self) -> Path:
         return self.path("models")
 

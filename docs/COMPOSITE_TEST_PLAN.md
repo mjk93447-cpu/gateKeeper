@@ -21,6 +21,13 @@ approved for production use.
    image -> YOLO code ROI -> relative ROI -> PaddleOCR -> decision engine.
 8. Place files in the hot folder and verify archive routing, popup replacement,
    alarm replacement, audit logs, and simulation PLC signals.
+9. Capture an empty Frame Gate background, then replay a panel sequence at
+   0.10, 0.15, and 0.25-second image intervals. Verify two stable frames are
+   required and the sharpest stable image is the only image sent to YOLO/OCR.
+10. Verify `INSPECTION_LOCK` starts at frame selection. Confirm that both the
+    configured refractory time and two empty frames are required before the
+    next selected panel; an early reappearance must log `unexpected_early_panel`
+    and show a yellow timing warning without changing decision counters.
 
 ## Scenario matrix
 
@@ -34,6 +41,13 @@ approved for production use.
 | Missing detector ROI | `ABNORMAL` |
 | Invalid crop, model, archive, or database failure | `SYSTEM_ERROR`; normal signal prohibited |
 | Partially written input file | Wait for stability before processing |
+| Empty camera frame | `frame_empty`; no inference, popup, alarm, PLC request, or decision counter change |
+| Moving or blurred panel frame | `frame_moving`; no inference or production decision |
+| Two qualifying stable frames | Exactly one sharpest frame selected and exactly one YOLO/OCR invocation |
+| Frame during refractory | `frame_suppressed`; no inference or production decision |
+| New panel after empty scene but before refractory expiry | `unexpected_early_panel`, yellow timing warning, no decision |
+| Second selected panel while inference candidate is pending | `SYSTEM_ERROR` with `inference_backpressure`; never silently drop it |
+| 10 FPS camera sequence | Frame Gate p95 <= 20 ms, bounded queue, and suppressed raw frames deleted or sampled only |
 | Duplicate image hash | Move to duplicate archive and do not issue a second decision |
 | Out-of-order completed result | Older sequence cannot replace the newer popup or alarm state |
 | Recipe collision after O/0 correction | Save rejected |

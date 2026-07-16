@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Manufacturning Junction gateKeeper AI Vision SOP</title>
+  <style>
+    @page { size: A4; margin: 8mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9edf1; color: #162b3b; font-family: Arial, Helvetica, sans-serif; }
+    .page { position: relative; width: 194mm; min-height: 281mm; margin: 0 auto 5mm; padding: 0; background: #fff; page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .banner { background: #123c59; color: #fff; padding: 5mm 6mm 4mm; border-radius: 0 0 3mm 3mm; }
+    h1 { margin: 0; font-size: 20pt; letter-spacing: .1pt; }
+    .sub { margin: 1.2mm 0 0; color: #d6edf9; font-size: 9.5pt; }
+    h2 { margin: 3mm 0 1.4mm; padding-bottom: 1mm; border-bottom: 1.5px solid #36a1cf; color: #123c59; font-size: 12.5pt; }
+    h3 { margin: 0 0 .8mm; color: #123c59; font-size: 9.6pt; }
+    p, li, td, th { font-size: 8.25pt; line-height: 1.22; }
+    p { margin: 1mm 0; }
+    ol, ul { margin: 1mm 0 1mm 4mm; padding-left: 3.5mm; }
+    li { margin: .55mm 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; }
+    .card { padding: 2mm 2.4mm; border: 1px solid #c5d6e0; border-radius: 2mm; background: #f8fbfd; }
+    .step { display: grid; grid-template-columns: 6mm 1fr; gap: 1.5mm; margin: 1.4mm 0; }
+    .n { width: 5.5mm; height: 5.5mm; line-height: 5.5mm; border-radius: 50%; text-align: center; background: #126d97; color: #fff; font-size: 8pt; font-weight: bold; }
+    .flow { display: flex; align-items: stretch; gap: 1mm; margin: 1.7mm 0; }
+    .node { flex: 1; min-height: 12mm; padding: 1.4mm; border-radius: 1.5mm; display: flex; justify-content: center; align-items: center; text-align: center; font-size: 7.5pt; font-weight: bold; }
+    .arrow { align-self: center; color: #126d97; font-size: 13pt; }
+    .blue { background: #e7f5fc; border: 1px solid #7cc6e5; } .green { background: #e9f9ef; border: 1px solid #76c796; } .yellow { background: #fff9df; border: 1px solid #e4c65b; } .red { background: #fff0f0; border: 1px solid #e28989; }
+    .notice { margin: 1.7mm 0; padding: 1.7mm 2mm; border-left: 3px solid #eab308; background: #fffbe9; font-size: 8.1pt; line-height: 1.2; }
+    .stop { margin: 1.7mm 0; padding: 1.7mm 2mm; border-left: 3px solid #dc2626; background: #fff0f0; font-size: 8.1pt; line-height: 1.2; }
+    .pass { margin: 1.7mm 0; padding: 1.7mm 2mm; border-left: 3px solid #16a34a; background: #effbf2; font-size: 8.1pt; line-height: 1.2; }
+    .screen { margin: 1.4mm 0; padding: 2mm; border: 3px solid #38576b; border-radius: 2mm; background: #172938; color: #e2f7ff; font-family: Consolas, monospace; font-size: 7.4pt; line-height: 1.35; }
+    .screen b { color: #a9eaff; } .btn { display: inline-block; margin: 1mm .7mm 0 0; padding: .7mm 1.6mm; border-radius: 1mm; background: #2580b1; color:#fff; }
+    table { width: 100%; border-collapse: collapse; margin: 1.3mm 0; } th, td { padding: 1.1mm; border: 1px solid #b9ccd8; vertical-align: top; } th { background: #dceef7; color: #123c59; text-align:left; }
+    .key { font-family: Consolas, monospace; background: #e9f0f4; border-radius: 1mm; padding: .1mm .7mm; }
+    .check { color:#126d97; font-weight:bold; } .small { font-size: 7.2pt; color: #506c7e; }
+    .footer { position: absolute; bottom: 0; width: 100%; padding-top: 1mm; border-top: 1px solid #c5d6e0; display:flex; justify-content:space-between; color:#587082; font-size:7pt; }
+    @media print { body { background:#fff; } .page { margin:0; } }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <div class="banner"><h1>Manufacturning Junction gateKeeper AI Vision SOP</h1><div class="sub">SOP-FAV-001 · Field installation, image monitoring, labeling, CPU fine-tuning and safe first operation · Revision 1.1.0</div></div>
+
+    <h2>1. Purpose, scope and safety gate</h2>
+    <div class="grid"><div class="card"><h3>Purpose</h3><p>Inspect the FPCB model code before AAM input. The application classifies every image as <strong>OK</strong>, <strong>Abnormal</strong>, <strong>Error</strong> (registered problem code), or <strong>System Error</strong>.</p></div><div class="card"><h3>Scope</h3><p>Windows x64, CPU-only, one camera hot-folder, local labeling/training, sound alarm, audit archive and PLC <strong>simulation/dry-run</strong>.</p></div></div>
+    <div class="stop"><strong>First field use: PLC must remain Simulation or Dry-run.</strong> Do not map a physical stop, reject, or picker signal until the site safety review and independent real-lot validation are complete.</div>
+    <div class="grid"><div class="card"><h3>Required before start</h3><ul><li>Windows 10/11 x64; 8 GB free disk minimum (16 GB RAM recommended for training).</li><li>Camera software that saves one complete PNG/JPG per panel into one folder.</li><li>Speaker connected if audible alarm is required.</li></ul></div><div class="card"><h3>Default recipe</h3><ul><li>Normal expected code: <strong>HJ04</strong></li><li>Registered problem code: <strong>HJ05</strong></li><li>Only O/0 is automatically equivalent; other character substitutions are not.</li></ul></div></div>
+
+    <h2>2. Install the offline ZIP and start the application</h2>
+    <div class="step"><div class="n">1</div><div>Copy <span class="key">Manufacturing-Junction-gateKeeper-AI-Vision.zip</span> to a local drive, for example <span class="key">D:\gateKeeper</span>. Do not run from a network share or USB drive.</div></div>
+    <div class="step"><div class="n">2</div><div>Right-click → <strong>Extract All…</strong> → extract to a short local folder, for example <span class="key">D:\gateKeeper\app</span>.</div></div>
+    <div class="step"><div class="n">3</div><div>Keep the entire extracted folder together. Do not move/delete <span class="key">_internal</span>, <span class="key">models</span>, <span class="key">config</span>, <span class="key">docs</span>, or either EXE file.</div></div>
+    <div class="step"><div class="n">4</div><div>Start <strong>Manufacturing Junction gateKeeper AI Vision.exe</strong>. If Windows asks for permission, obtain local IT approval before selecting <strong>Run anyway</strong>.</div></div>
+    <div class="pass"><strong>Pass condition:</strong> The dashboard opens without a dark-red System Error, shows HJ04/HJ05, and displays model status.</div>
+
+    <h2>3. Connect image data and perform the safe three-image test</h2>
+    <div class="flow"><div class="node blue">Camera saves complete PNG/JPG</div><div class="arrow">→</div><div class="node blue">One local watch folder</div><div class="arrow">→</div><div class="node green">YOLO ROI + OCR + decision</div><div class="arrow">→</div><div class="node blue">Archive, overlay and log</div></div>
+    <ol><li>Use the bundled <span class="key">watch</span> folder or create, for example, <span class="key">D:\gateKeeper\camera-watch</span>.</li><li>Set the camera application’s <strong>Save image</strong> destination to this exact folder. If possible, write a temporary extension first and rename to PNG/JPG only after writing completes.</li><li>In gateKeeper Live Dashboard, select the same folder; set PLC to <strong>Simulation</strong>/<strong>Dry-run</strong>; press <strong>Start monitoring</strong>.</li></ol>
+    <div class="screen"><b>Live Dashboard (concept)</b><br>Expected normal: [ HJ04 ▼ ] &nbsp; Problem codes: HJ05 &nbsp; PLC: Simulation<br>Folder: D:\gateKeeper\camera-watch<br><span class="btn">Manage code recipe</span><span class="btn">Start monitoring</span><span class="btn">Mute</span><span class="btn">Label images</span></div>
+    <table><tr><th>Put this known image into watch</th><th>Required result</th></tr><tr><td>Confirmed HJ04</td><td><strong style="color:#168b3d">Green OK</strong>; no sound; archive/normal.</td></tr><tr><td>Confirmed HJ05</td><td><strong style="color:#c81f1f">Red Error</strong>; repeat alarm; simulated RejectRequest; archive/problem.</td></tr><tr><td>Blurred / unreadable / other code</td><td><strong style="color:#967000">Yellow Abnormal</strong>; warning sound; never green; archive/abnormal or review.</td></tr></table>
+    <div class="footer"><span>Printed controlled copy: verify revision before use</span><span>Page 1 of 2</span></div>
+  </section>
+
+  <section class="page">
+    <div class="banner"><h1>Manufacturning Junction gateKeeper AI Vision SOP</h1><div class="sub">SOP-FAV-001 · Continue: recipe management, labeling, CPU fine-tuning and operating approval</div></div>
+
+    <h2>4. Configure the code recipe</h2>
+    <ol><li>On the dashboard, press <strong>Manage code recipe</strong>.</li><li>Add/edit/delete only four-character uppercase letter/number codes. Keep normal and problem lists separate. Select the active expected normal code.</li><li>Press <strong>Save</strong>. The same recipe is used by live decisions, label validation and training labels.</li></ol>
+    <div class="notice"><strong>Rule:</strong> HJ05 must remain in the problem list for the default test. An image with no ROI, OCR failure, or invalid length is <strong>Abnormal</strong>, never OK.</div>
+
+    <h2>5. Label real local FPCB images</h2>
+    <div class="flow"><div class="node blue">Open local panel image</div><div class="arrow">→</div><div class="node blue">Draw FPCB and code ROI</div><div class="arrow">→</div><div class="node yellow">Save code + panel/lot/recipe</div><div class="arrow">→</div><div class="node green">Export grouped dataset</div></div>
+    <div class="screen"><b>Label images (concept)</b><br>Open image → class [ fpcb_surface ] / [ code_roi ] → draw rectangle<br>Code [ HJ04 ▼ ] &nbsp; Panel ID [        ] &nbsp; Lot ID [        ] &nbsp; Recipe [        ]<br><span class="btn">Open image</span><span class="btn">Save annotation</span><span class="btn">Export YOLO dataset</span></div>
+    <div class="step"><div class="n">1</div><div>Press <strong>Label images</strong> → <strong>Open image</strong>. Use approved local field images only.</div></div>
+    <div class="step"><div class="n">2</div><div>Select <strong>fpcb_surface</strong> and draw around the complete FPCB. Then select <strong>code_roi</strong> and draw tightly around only HJ04/HJ05.</div></div>
+    <div class="step"><div class="n">3</div><div>Select the visible code; enter panel, lot and recipe/group; press <strong>Save annotation</strong>. Use the same lot ID for frames from one physical lot.</div></div>
+    <div class="step"><div class="n">4</div><div>Collect varied focus, position, brightness, reflection and acceptable production variation. Use at least <strong>three separate groups/lots</strong>; do not split frames from the same panel/lot across train and test.</div></div>
+
+    <h2>6. Export, CPU fine-tune, and decide whether to promote</h2>
+    <ol><li>Press <strong>Export YOLO dataset</strong>. Correct every label/split validation error; do not train with a warning unresolved.</li><li>Open <strong>Training progress</strong>. Use CPU, workers <strong>0</strong>, image size 640, batch <strong>1–2</strong> on low-memory PCs, 100 epochs, patience 20.</li><li>Start training. Review progress, validation graph, exact-code accuracy, problem recall, confusion matrix and saved best checkpoint.</li><li>Test the candidate only on a held-out real lot that was not used for labeling/training. Do not auto-replace the operating model.</li></ol>
+    <div class="pass"><strong>Approve for production only when:</strong> held-out real-lot normal exact-code accuracy and problem recall meet the site target; no problem sample is classified as normal; ROI overlays are correct; and PLC fail-safe design is formally approved.</div>
+
+    <h2>7. Live operation, feedback and recovery</h2>
+    <table><tr><th>Screen result</th><th>Operator action</th></tr><tr><td><strong style="color:#168b3d">OK</strong></td><td>Confirm visual correctness during the trial. No alarm should remain.</td></tr><tr><td><strong style="color:#967000">Abnormal</strong></td><td>Inspect panel/image. Use dashboard feedback: approve normal, correct to abnormal/problem, add to retraining data; enter operator and reason.</td></tr><tr><td><strong style="color:#c81f1f">Error</strong></td><td>Follow quality procedure. During this trial, confirm the simulated RejectRequest in audit logs only.</td></tr><tr><td><strong style="color:#7f1d1d">System Error</strong></td><td>Stop monitoring. Check disk space, model files, camera folder permission and logs. Never treat it as normal.</td></tr></table>
+    <div class="grid"><div class="card"><h3>End-of-shift checks</h3><p><span class="check">☐</span> HJ04 green, HJ05 red, blurred/unknown never green.</p><p><span class="check">☐</span> Alarm/Mute, archive, overlay, duplicate guard and latest-popup replacement checked.</p></div><div class="card"><h3>More detail in the app folder</h3><p><span class="key">docs/OPERATOR_GUIDE.md</span><br><span class="key">docs/TRAINING.md</span><br><span class="key">docs/SAFETY.md</span><br><span class="key">docs/PLC_INTEGRATION.md</span></p></div></div>
+    <div class="stop"><strong>Stop and escalate:</strong> any System Error, yellow/red unexpectedly becoming green, incorrect ROI, missing archived image, or any proposal to enable physical PLC signals without safety approval.</div>
+    <p class="small">Record camera settings, hot-folder path, code recipe version, model version, thresholds, test lot IDs and operator feedback in the audit record for every field trial.</p>
+    <div class="footer"><span>SOP-FAV-001 · Revision 1.1.0 · Manufacturing Junction gateKeeper AI Vision</span><span>Page 2 of 2</span></div>
+  </section>
+</body>
+</html>

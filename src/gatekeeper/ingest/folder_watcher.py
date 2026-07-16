@@ -103,6 +103,96 @@ class FolderWatcher:
             self._stop.wait(self.poll_seconds)
 
 
+class RapidFolderWatcher:
+    """Non-blocking final-file watcher for camera hot-folders.
+
+    A camera may create a final JPG/PNG directly.  This watcher waits for the
+    size and mtime to remain unchanged for ``settle_ms`` without sleeping per
+    file, then dispatches it once.  It deliberately does not hash frames: the
+    Frame Gate owns panel-session suppression before expensive work begins.
+    """
+
+    def __init__(
+        self,
+        directory: str | Path,
+        on_file: Callable[[Path, int], None],
+        *,
+        on_not_ready: Callable[[Path], None] | None = None,
+        poll_seconds: float = 0.01,
+        settle_ms: int = 30,
+        suffixes: Iterable[str] = IMAGE_SUFFIXES,
+    ) -> None:
+        self.directory = Path(directory)
+        self.on_file = on_file
+        self.on_not_ready = on_not_ready
+        self.poll_seconds = max(0.005, poll_seconds)
+        self.settle_seconds = max(0.001, settle_ms / 1000)
+        self.suffixes = frozenset(s.lower() for s in suffixes)
+        self._observed: dict[Path, tuple[int, int, float]] = {}
+        self._dispatched: set[Path] = set()
+        self._not_ready_notified: set[Path] = set()
+        self._sequence = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self.directory.mkdir(parents=True, exist_ok=True)
+        if self._thread is None or not self._thread.is_alive():
+            self._stop.clear()
+            self._thread = threading.Thread(
+                target=self._run, daemon=True, name="gatekeeper-rapid-folder"
+            )
+            self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+        self._thread = None
+
+    def scan_once(self) -> int:
+        now = time.monotonic()
+        dispatched = 0
+        live: set[Path] = set()
+        try:
+            paths = sorted(self.directory.iterdir(), key=lambda item: item.stat().st_mtime_ns)
+        except OSError:
+            return 0
+        for path in paths:
+            if not path.is_file() or path.suffix.lower() not in self.suffixes:
+                continue
+            live.add(path)
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            marker = (stat.st_size, stat.st_mtime_ns)
+            previous = self._observed.get(path)
+            if previous is None or previous[:2] != marker:
+                self._observed[path] = (*marker, now)
+                if self.on_not_ready is not None and path not in self._not_ready_notified:
+                    self._not_ready_notified.add(path)
+                    self.on_not_ready(path)
+                continue
+            if path in self._dispatched or now - previous[2] < self.settle_seconds:
+                continue
+            self._dispatched.add(path)
+            self._sequence += 1
+            self.on_file(path, self._sequence)
+            dispatched += 1
+        disappeared = set(self._observed) - live
+        for path in disappeared:
+            self._observed.pop(path, None)
+            self._dispatched.discard(path)
+            self._not_ready_notified.discard(path)
+        return dispatched
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            self.scan_once()
+            self._stop.wait(self.poll_seconds)
+
+
 class ArchiveManager:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)

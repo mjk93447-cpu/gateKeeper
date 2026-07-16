@@ -68,14 +68,46 @@ development model and are not a substitute for site validation.
 1. Confirm that the camera or image transfer writes completed image files to the
    installed `watch` folder.
 2. Select **Start hot-folder**.
-3. Confirm the header changes to `LIVE / CPU / HOT-FOLDER`.
-4. Do not rename, move, or edit an image while it is being written. The program
-   waits for a stable file size, hashes the image, and rejects duplicates.
-5. Check the latest popup and audit log during the first panels of the shift.
+3. Confirm the header changes to `LIVE / CPU / HOT-FOLDER / FRAME GATE`.
+4. With no panel in view, select **Capture Empty Background**. Keep the view
+   empty until the next received camera image confirms the capture. This is a
+   line-specific calibration; repeat it after changing camera position,
+   lighting, presence ROI, or image resolution.
+5. Set the camera application to save a unique final JPG/PNG every **150 ms**.
+   Then open **Frame Gate Settings** and confirm **Expected camera interval** is
+   `150 ms`; it is a monitoring check and does not control the camera itself.
+   Record the line-approved refractory period. The default is 2,000 ms, but it is fully manual from 0 to 60,000 ms. The
+   settings panel also defines the presence ROI, sharpness ROI, two stable-frame
+   confirmation, two empty frames to re-arm, a 30-ms final-file settle check,
+   and a three-frame latest-wins queue. Restart hot-folder monitoring after
+   changing settings.
+6. Check the Frame Gate status line during the first panels. It reports session
+   state, selected/suppressed frames, queue depth, and p95 gate latency. A
+   yellow **Timing Warning** means an early panel or unsafe observed timing was
+   logged; it is not an inspection result. A p95 above 20 ms means the PC did
+   not meet the Frame Gate performance target and needs site review.
+7. Do not rename, move, or edit an image while it is being written. The camera
+   must create unique final JPG/PNG names in a local SSD `watch` folder.
+8. Check the latest popup and audit log during the first panels of the shift.
 
-Processed images are moved to `archive/normal`, `archive/abnormal`,
-`archive/problem`, `archive/error`, or `archive/duplicate`. The original input
-is never silently overwritten.
+Selected images are moved to `archive/normal`, `archive/abnormal`,
+`archive/problem`, or `archive/error`. Suppressed raw frames are deleted after
+metadata logging by default to protect disk capacity; the optional diagnostic
+sampling setting retains one every N under `archive/ignored`.
+
+### Frame Gate operating rules
+
+The camera may produce rapid images, but one physical panel is inspected only
+once. The session sequence is `EMPTY → PRESENT/MOVING → STABLE →
+INSPECTION_LOCK → EMPTY_REARMED`. The refractory timer begins when the sharpest
+confirmed stable frame is selected, not when AI processing finishes. The next
+panel is accepted only after both the refractory time has elapsed and the
+configured number of empty frames has been observed.
+
+At a 0.3-second stationary dwell, 0.10–0.15-second effective camera intervals
+normally provide two or three candidates. A 0.25-second interval can provide
+only one candidate and therefore cannot reliably prove that the panel stopped.
+Do not use a network share for high-rate hot-folder input.
 
 ## 5. Read the result
 
@@ -85,6 +117,11 @@ is never silently overwritten.
 | Yellow `Abnormal` | ROI/OCR is missing, uncertain, malformed, or unregistered. | Follow the line review procedure; do not assume a pass. |
 | Red `Error` | A registered problem code, such as `HJ05`, was read. | Treat as reject-required. Confirm the PLC-side response using the approved line procedure. |
 | Dark red `System Error` | Application, model, folder, storage, or internal failure. | Stop automatic passing and escalate. Do not restart production until cleared. |
+
+An early-panel timing warning, empty frame, moving frame, or Frame Gate queue
+overrun is not a NORMAL/ABNORMAL/PROBLEM decision. It must not be interpreted as
+a pass. Review `unexpected_early_panel`, `frame_gate_overrun`, and
+`inference_backpressure` audit events before continuing production.
 
 Every completed image replaces the previous popup. The largest sequence number
 always wins, so an older delayed result cannot replace a newer result.

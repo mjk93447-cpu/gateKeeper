@@ -20,6 +20,22 @@
     "poll_seconds": 0.25,
     "stable_checks": 2
   },
+  "frame_gate": {
+    "enabled": true,
+    "expected_camera_interval_ms": 150,
+    "refractory_period_ms": 2000,
+    "stable_frames_required": 2,
+    "empty_frames_to_rearm": 2,
+    "file_settle_ms": 30,
+    "queue_depth": 3,
+    "presence_threshold": 0.08,
+    "motion_threshold": 0.025,
+    "sharpness_threshold": 20.0,
+    "presence_roi": {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0},
+    "sharpness_roi": {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0},
+    "diagnostic_sample_every": 0,
+    "preview_max_width": 160
+  },
   "models": {
     "detector_path": "models/detector.onnx",
     "detector_checkpoint": "betty0/pcb-defect-detection",

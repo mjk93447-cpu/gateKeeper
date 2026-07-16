@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gatekeeper-aam"
-version = "1.0.0"
+version = "1.1.0"
 description = "Manufacturing Junction gateKeeper AI Vision for OLED AAM panel model-code inspection"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

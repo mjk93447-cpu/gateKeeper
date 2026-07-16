@@ -150,3 +150,51 @@ training runner returned its CPU training command-line help successfully. The
 ZIP was created at 702.7 MB; the staged, uncompressed directory was 1.06 GB;
 and the Windows x64 Inno Setup installer compiled successfully at 610.5 MB.
 Synthetic and public development data were excluded from all three artifacts.
+# Frame Gate FHD replay addendum (release 1.1.0 gate)
+
+Date: 2026-07-16
+Scope: development-only deterministic FHD JPEG replay. The images are created
+in a temporary directory and are not part of the application, release bundle,
+or training dataset.
+
+## Method
+
+`scripts/replay_frame_gate_fhd.py` generated a 1,920 x 1,080 electronic-panel
+scene with empty views, stationary HJ04-style panels, and deliberately blurred
+and translated HJ05-style moving panels. It captured an empty background,
+configured a center-panel presence/sharpness ROI, then evaluated 100 final
+JPEG frames at 150-ms synthetic camera timestamps. The production
+Frame Gate used a 30-ms settle design, three-frame latest-wins queue, two
+stable-frame requirement, two empty-frame re-arm requirement, and a 2,000-ms
+refractory period.
+
+## Results
+
+| Input interval | Frames | Moving sessions selected | Stationary sessions selected | Gate p95 | Result |
+|---|---:|---:|---:|---:|---|
+| 150 ms, run 1 | 100 | 0 | 2 | 19.6 ms | Pass |
+| 150 ms, run 2 | 100 | 0 | 2 | 18.6 ms | Pass |
+
+Each run selected two stationary HJ04-style sessions and selected no moving
+session. It emitted no duplicate selection, no unexpected early-panel event,
+and no inference backpressure event. The first present sharp frame is retained
+only as a provisional candidate; a following low-motion frame is required
+before it can be selected. This permits a 150-ms camera interval to confirm a
+300-ms stationary dwell without treating the first image itself as inspected.
+
+The test exposed an initial motion-sensitivity weakness when a whole-image ROI
+diluted localized FPCB motion. The implementation was improved to score both
+average and upper-decile pixel change, with a calibrated center ROI used for
+the replay. After the improvement, the moving-session selection count was zero.
+
+## Release decision
+
+**Release 1.1.0 Frame Gate software gate passed.** The default configuration
+records a 150-ms expected camera interval. The GitHub bundle may be published.
+Factory use still requires actual-line background capture, presence/sharpness
+ROI calibration, and the site procedure's independent model-performance and
+machine-safety approval.
+
+The automated regression suite passed: `41 passed`; Ruff passed after the Frame
+Gate implementation. These checks validate code behavior but do not certify
+site OCR accuracy or factory safety.

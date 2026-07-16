@@ -15,6 +15,24 @@ Application/model/storage failures are shown as dark-red `System Error` and are
 never treated as a normal pass. Each new image replaces the previous result
 popup. The last result remains visible until the next image is processed.
 
+## Rapid-frame camera input
+
+Before YOLO/OCR, the hot-folder path uses a lightweight **Frame Gate**. It
+reads a reduced grayscale preview, compares it with a locally captured empty
+background, confirms motion has stopped for the configured number of frames,
+and selects the sharpest confirmed frame. Only that one original image reaches
+the CPU inference worker. Empty, moving, duplicate-session, and refractory
+frames are logged but do not change inspection counts, popups, alarms, or PLC
+simulation signals.
+
+For a 0.3-second stationary dwell, configure the camera at 0.10–0.15 seconds
+per final image when possible. The default Frame Gate configuration has a
+30-ms final-file settle check, a three-frame latest-wins queue, two stable
+frames, two empty frames to re-arm, and a fully manual 2,000-ms refractory
+period. Capture the empty background from the application before live input.
+The **Frame Gate Settings** panel saves line-specific values under `config` and
+warns about unsafe observed timing without blocking an approved manual setting.
+
 ## Local setup
 
 ```powershell
