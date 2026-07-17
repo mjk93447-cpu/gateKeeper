@@ -44,6 +44,8 @@ def run_pyinstaller(
     onefile: bool = False,
     exclude: list[str] | None = None,
     collect_submodules: list[str] | None = None,
+    hiddenimports: list[str] | None = None,
+    metadata: list[str] | None = None,
 ) -> None:
     command = [
         python_executable,
@@ -62,14 +64,21 @@ def run_pyinstaller(
         str(stage.parent / "pyinstaller-work"),
         "--specpath",
         str(stage.parent / "pyinstaller-spec"),
-        str(entrypoint),
     ]
     for package in collect_all:
         command.extend(["--collect-all", package])
     for package in collect_submodules or []:
         command.extend(["--collect-submodules", package])
+    for package in hiddenimports or []:
+        command.extend(["--hidden-import", package])
+    for distribution in metadata or []:
+        command.extend(["--copy-metadata", distribution])
     for package in exclude or []:
         command.extend(["--exclude-module", package])
+    # PyInstaller expects its positional entrypoint after all collection
+    # options. Keeping it last also makes this reproducible with the manual
+    # frozen-runtime verification command.
+    command.append(str(entrypoint))
     subprocess.run(command, check=True, cwd=root)
     suffix = ".exe" if sys.platform == "win32" and onefile else ""
     built = stage.parent / "pyinstaller-dist" / f"{name}{suffix}"
@@ -83,9 +92,43 @@ def build_executables(root: Path, stage: Path, training_python: str) -> None:
         stage,
         PRODUCT_NAME,
         root / "src" / "gatekeeper" / "__main__.py",
-        [],
-        exclude=["matplotlib", "pandas", "pytest", "tensorflow", "torch", "ultralytics"],
-        collect_submodules=["paddleocr"],
+        # PaddleOCR delegates prediction construction to PaddleX at runtime.
+        # PaddleX loads several backend modules dynamically, so its complete
+        # package must be collected for a frozen offline executable.
+        [
+            "aistudio_sdk",
+            "bidi",
+            "colorlog",
+            "filelock",
+            "huggingface_hub",
+            "httpx",
+            "imagesize",
+            "matplotlib",
+            "modelscope",
+            "paddle",
+            "paddleocr",
+            "paddlex",
+            "pandas",
+            "prettytable",
+            "pynvml",
+            "requests",
+            "ruamel",
+            "ujson",
+        ],
+        exclude=["pytest", "tensorflow", "ultralytics"],
+        # `idna` imports this CPython extension dynamically through requests.
+        # Include it explicitly so offline frozen PaddleX startup is reliable.
+        hiddenimports=[
+            "torch",
+            "torch.multiprocessing",
+            "torch.distributed",
+            "unicodedata",
+        ],
+        metadata=[
+            "opencv-contrib-python",
+            "pypdfium2",
+            "python-bidi",
+        ],
     )
     run_pyinstaller(
         training_python,

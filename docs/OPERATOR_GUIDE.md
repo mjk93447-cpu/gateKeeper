@@ -65,8 +65,10 @@ development model and are not a substitute for site validation.
 
 ## 4. Start live inspection
 
-1. Confirm that the camera or image transfer writes completed image files to the
-   installed `watch` folder.
+1. Under **Camera hot-folder**, select **Choose folder** and select the local
+   SSD directory where the camera writes completed image files. The selected
+   path is shown in the control panel and is saved for the next application
+   start. Stop monitoring before changing this directory.
 2. Select **Start hot-folder**.
 3. Confirm the header changes to `LIVE / CPU / HOT-FOLDER / FRAME GATE`.
 4. With no panel in view, select **Capture Empty Background**. Keep the view

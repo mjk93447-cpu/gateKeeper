@@ -198,3 +198,45 @@ machine-safety approval.
 The automated regression suite passed: `41 passed`; Ruff passed after the Frame
 Gate implementation. These checks validate code behavior but do not certify
 site OCR accuracy or factory safety.
+
+# Runtime packaging and FHD replay addendum (release 1.1.1)
+
+Date: 2026-07-17
+
+## Frozen Windows EXE validation
+
+The packaged `Manufacturing Junction gateKeeper AI Vision.exe` was launched on
+Windows x64 and validated against the local approved model package. The first
+hot-folder start completed in the background without freezing the UI and
+reached `LIVE / CPU / HOT-FOLDER / FRAME GATE`. A Stop then Start cycle reused
+the same PaddleOCR engine and returned to LIVE without a PDX reinitialization
+error. The test also confirmed that the package contains the required
+Paddle/PaddleX/PaddleOCR runtime, `pandas`, `python-bidi`, `pypdfium2`,
+OpenCV metadata, and the CPython `unicodedata` extension.
+
+## FHD 150-ms sequence replay
+
+The automated replay creates 100 temporary 1,920 x 1,080 JPEG frames: empty
+scene, deliberately translated moving panel, confirmed stationary panel, and
+empty re-arm frames. It uses a 150-ms synthetic timestamp, two stable-frame
+requirement, two empty frames to re-arm, and a 2,000-ms refractory period.
+
+| Metric | Result |
+| --- | ---: |
+| Frames | 100 |
+| Physical panel sessions | 5 |
+| Selected inspection frames | 5 |
+| Moving frames selected | 0 |
+| Re-armed sessions | 5 |
+| Gate p95 acceptance limit | < 20 ms |
+
+The first stationary frame after a moving sequence can still be motion because
+it returns from the translated position. The replay therefore confirms two
+subsequent stationary frames before allowing a selected image. This is a safe
+requirement for the configured 150-ms camera interval and prevents a moving
+frame from being promoted to YOLO/OCR.
+
+**Release 1.1.1 software gate:** passed for the packaged runtime and the
+development-only FHD replay. It remains necessary to calibrate background and
+ROIs at each factory line and to approve performance on an independent
+site-collected holdout before enabling physical PLC outputs.

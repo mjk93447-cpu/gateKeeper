@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,7 +31,9 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSpinBox,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -561,14 +565,19 @@ class FrameGateSettingsDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
+    folder_pipeline_ready = Signal(object)
+    folder_start_failed = Signal(str)
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Manufacturing Junction gateKeeper AI Vision - AAM FPCB Inspection")
-        self.resize(1320, 860)
+        self.resize(1600, 900)
+        self.setMinimumSize(1050, 700)
         self.counts: Counter[DisplayState] = Counter()
         self.last_sequence = -1
         self.last_result: InspectionResult | None = None
         self.paths = RuntimePaths.discover()
+        self.watch_directory = self._load_watch_directory()
         self.recipe = CodeRecipe.load(self.paths.code_recipe)
         self.thresholds, self.candidate_confidence = self._load_thresholds()
         self.frame_gate_settings = self._load_frame_gate_settings()
@@ -577,9 +586,18 @@ class MainWindow(QMainWindow):
         self.events = SQLiteEventStore(self.paths.logs / "gatekeeper.sqlite3")
         self.audit = JsonlDecisionSink(self.paths.logs / "inspection.jsonl")
         self.controller: FolderController | None = None
+        self._folder_start_pending = False
+        self.folder_pipeline_ready.connect(self._activate_folder_pipeline)
+        self.folder_start_failed.connect(self._folder_start_error)
 
         root = QWidget()
-        self.setCentralWidget(root)
+        root.setMinimumWidth(1050)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setWidget(root)
+        self.setCentralWidget(scroll)
         self.popup = ResultPopup(self)
         page = QVBoxLayout(root)
         header = QHBoxLayout()
@@ -595,9 +613,18 @@ class MainWindow(QMainWindow):
         header.addWidget(legal)
         page.addLayout(header)
 
-        body = QHBoxLayout()
-        body.addWidget(self._build_controls(), 1)
+        body = QSplitter(Qt.Orientation.Horizontal)
+        controls_scroll = QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        controls_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        controls_scroll.setMinimumWidth(540)
+        controls_scroll.setWidget(self._build_controls())
+        body.addWidget(controls_scroll)
+        result_panel = QWidget()
         right = QVBoxLayout()
+        right.setContentsMargins(0, 0, 0, 0)
+        result_panel.setLayout(right)
         self.overlay = ResultOverlay()
         right.addWidget(self.overlay)
         self.detector_bar = QProgressBar()
@@ -609,8 +636,11 @@ class MainWindow(QMainWindow):
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         right.addWidget(self.log, 1)
-        body.addLayout(right, 2)
-        page.addLayout(body, 1)
+        body.addWidget(result_panel)
+        body.setStretchFactor(0, 1)
+        body.setStretchFactor(1, 2)
+        body.setSizes([560, 960])
+        page.addWidget(body, 1)
         page.addWidget(LabelingView(self.paths.root, self.paths.code_recipe))
         page.addWidget(
             TrainingView(self.paths.root, self.paths.code_recipe, self.paths.training_runner)
@@ -620,18 +650,22 @@ class MainWindow(QMainWindow):
             "QMainWindow{background:#f5f7fb;} QGroupBox{font-weight:600; background:white; "
             "border:1px solid #dbe2ea; border-radius:8px; margin-top:10px; padding-top:8px;} "
             "QGroupBox::title{subcontrol-origin:margin; left:10px; padding:0 4px;} "
-            "QPushButton{padding:9px 14px;}"
+            "QPushButton{padding:9px 14px;} QScrollArea{border:none; background:transparent;}"
         )
 
     def _build_controls(self) -> QGroupBox:
         box = QGroupBox("Inspection controls")
         form = QFormLayout(box)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.expected = QComboBox()
         self.problems = QLineEdit()
         self.problems.setReadOnly(True)
         self._refresh_recipe_controls()
         self.expected.currentTextChanged.connect(self._set_active_normal_code)
         self.ocr_text = QLineEdit("HJ04")
+        self.watch_path = QLineEdit(str(self.watch_directory))
+        self.watch_path.setReadOnly(True)
+        self.watch_path.setMinimumWidth(180)
         self.candidate_conf = self._confidence_box(self.candidate_confidence)
         self.det_conf = self._confidence_box(self.thresholds.detector_confidence)
         self.ocr_conf = self._confidence_box(0.98)
@@ -641,6 +675,13 @@ class MainWindow(QMainWindow):
         self.roi_h = self._confidence_box(1.0)
         form.addRow("Expected code", self.expected)
         form.addRow("Problem codes", self.problems)
+        watch_row = QHBoxLayout()
+        watch_row.addWidget(self.watch_path, 1)
+        browse_watch = QPushButton("Choose folder")
+        browse_watch.setMinimumWidth(120)
+        browse_watch.clicked.connect(self._choose_watch_directory)
+        watch_row.addWidget(browse_watch)
+        form.addRow("Camera hot-folder", watch_row)
         manage_codes = QPushButton("Manage code recipe")
         manage_codes.clicked.connect(self._manage_codes)
         form.addRow(manage_codes)
@@ -748,14 +789,29 @@ class MainWindow(QMainWindow):
             self._present_error(str(exc))
 
     def _start_folder(self) -> None:
+        if self.controller is not None or self._folder_start_pending:
+            self.statusBar().showMessage("Hot-folder monitoring is already running")
+            return
+        self._folder_start_pending = True
+        self.mode.setText("STARTING / CPU / HOT-FOLDER")
+        self.statusBar().showMessage("Loading CPU detector and OCR model in the background")
+        Thread(
+            target=self._build_folder_controller, daemon=True, name="gatekeeper-model-load"
+        ).start()
+
+    def _build_folder_controller(self) -> None:
+        stage = "verifying detector model"
         try:
             registry = ModelRegistry(self.paths.models / "manifest.json")
             detector_artifact = registry.verify("detector")
             model_path = detector_artifact.path
+            stage = "creating YOLO detector"
             detector = Yolo26OnnxDetector(
                 model_path, confidence=self.candidate_conf.value()
             )
+            stage = "creating local PaddleOCR predictor"
             ocr = PaddleOcrRecognizer(self.paths.models / "ocr")
+            stage = "creating inspection pipeline"
             pipeline = InspectionPipeline(
                 detector,
                 ocr,
@@ -774,27 +830,69 @@ class MainWindow(QMainWindow):
                     height=self.roi_h.value(),
                 ),
             )
+            # The expensive ML objects are safe to create off the UI thread.
+            # FolderController is a QObject, so create it only after returning
+            # to the Qt UI thread to preserve Qt thread affinity.
+            self.folder_pipeline_ready.emit(pipeline)
+        except Exception as exc:
+            # The UI stays concise, while the local support log preserves the
+            # complete failure chain needed for an offline field diagnosis.
+            details = (
+                f"[{stage}] {type(exc).__name__}: {exc}\n"
+                f"args={exc.args!r}\n"
+                f"cause={exc.__cause__!r}\n"
+                f"context={exc.__context__!r}\n"
+                f"{traceback.format_exc()}\n"
+            )
+            self.paths.logs.mkdir(parents=True, exist_ok=True)
+            with (self.paths.logs / "startup-errors.log").open(
+                "a", encoding="utf-8"
+            ) as stream:
+                stream.write(details)
+            self.folder_start_failed.emit(f"{stage}: {exc}")
+
+    def _activate_folder_pipeline(self, pipeline: object) -> None:
+        if not isinstance(pipeline, InspectionPipeline):
+            self._folder_start_error("invalid hot-folder inspection pipeline")
+            return
+        if not self._folder_start_pending:
+            return
+        try:
             self.controller = FolderController(
                 pipeline,
-                self.paths.watch,
+                self.watch_directory,
                 self.paths.archive,
                 settings=self.frame_gate_settings,
                 background_path=self.paths.frame_gate_background,
             )
-            self.controller.result_ready.connect(self._present)
-            self.controller.gate_event.connect(self._handle_gate_event)
-            self.controller.start()
-            self.mode.setText("LIVE / CPU / HOT-FOLDER / FRAME GATE")
-            if self.controller.gate.calibrated:
-                self.statusBar().showMessage("Hot-folder is running: Frame Gate is calibrated")
-            else:
-                self.statusBar().showMessage(
-                    "Hot-folder is running: clear the view and click Capture Empty Background"
-                )
         except Exception as exc:
-            self._present_error(str(exc))
+            self._folder_start_error(str(exc))
+            return
+        self._folder_start_pending = False
+        self.controller.result_ready.connect(self._present)
+        self.controller.gate_event.connect(self._handle_gate_event)
+        self.controller.start()
+        self.mode.setText("LIVE / CPU / HOT-FOLDER / FRAME GATE")
+        if self.controller.gate.calibrated:
+            self.statusBar().showMessage(
+                f"Hot-folder is running: {self.watch_directory} (Frame Gate calibrated)"
+            )
+        else:
+            self.statusBar().showMessage(
+                "Hot-folder is running: clear the view and click Capture Empty Background"
+            )
+
+    def _folder_start_error(self, reason: str) -> None:
+        self._folder_start_pending = False
+        self.mode.setText("SIMULATION / CPU")
+        self._present_error(reason)
 
     def _stop_folder(self) -> None:
+        if self._folder_start_pending:
+            self._folder_start_pending = False
+            self.mode.setText("SIMULATION / CPU")
+            self.statusBar().showMessage("Hot-folder startup cancelled")
+            return
         if self.controller is not None:
             self.controller.stop()
             self.controller = None
@@ -912,6 +1010,53 @@ class MainWindow(QMainWindow):
             return thresholds, candidate
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"invalid runtime threshold configuration: {exc}") from exc
+
+    def _load_watch_directory(self) -> Path:
+        try:
+            payload = json.loads(self.paths.config.read_text(encoding="utf-8"))
+            configured = str(payload.get("watch", {}).get("input_dir", "watch"))
+            candidate = Path(configured).expanduser()
+            if not candidate.is_absolute():
+                candidate = self.paths.root / candidate
+            return candidate.resolve()
+        except (OSError, TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"invalid hot-folder configuration: {exc}") from exc
+
+    def _save_watch_directory(self) -> None:
+        payload = json.loads(self.paths.config.read_text(encoding="utf-8"))
+        watch = payload.setdefault("watch", {})
+        try:
+            configured = self.watch_directory.relative_to(self.paths.root).as_posix()
+        except ValueError:
+            configured = str(self.watch_directory)
+        watch["input_dir"] = configured
+        self.paths.config.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    def _choose_watch_directory(self) -> None:
+        if self.controller is not None:
+            QMessageBox.information(
+                self,
+                "Hot-folder is active",
+                "Stop hot-folder monitoring before changing the camera input folder.",
+            )
+            return
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Choose camera hot-folder",
+            str(self.watch_directory),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not selected:
+            return
+        try:
+            self.watch_directory = Path(selected).resolve()
+            self._save_watch_directory()
+            self.watch_path.setText(str(self.watch_directory))
+            self.events.append("hot_folder_updated", {"path": str(self.watch_directory)})
+            self.audit.append_event("hot_folder_updated", {"path": str(self.watch_directory)})
+            self.statusBar().showMessage(f"Camera hot-folder saved: {self.watch_directory}")
+        except (OSError, TypeError, json.JSONDecodeError) as exc:
+            QMessageBox.critical(self, "Hot-folder save failed", str(exc))
 
     def _load_frame_gate_settings(self) -> FrameGateSettings:
         try:
