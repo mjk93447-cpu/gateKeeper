@@ -240,3 +240,15 @@ frame from being promoted to YOLO/OCR.
 development-only FHD replay. It remains necessary to calibrate background and
 ROIs at each factory line and to approve performance on an independent
 site-collected holdout before enabling physical PLC outputs.
+
+## Final release-assembly verification
+
+The final 1.1.1 staging bundle was assembled with the inspection EXE, the
+offline CPU training EXE, approved detector/OCR models, English SOP/manuals,
+relative-path configuration, and the AGPL corresponding-source archive. The
+staged inspection EXE launched at 1,920 x 1,080 and contained the required
+`unicodedata` runtime extension. The 100-frame FHD 150-ms Frame Gate replay
+was repeated five times after the production-equivalent file-settle boundary;
+every run selected exactly five stationary panel frames, selected no moving
+frame, and re-armed all five sessions. The complete automated suite then
+passed with `43 passed`, and Ruff reported no violations.

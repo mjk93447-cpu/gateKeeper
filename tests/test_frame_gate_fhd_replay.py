@@ -53,6 +53,10 @@ def test_fhd_150ms_camera_replay_selects_one_stationary_frame_per_panel(tmp_path
         nonlocal now, sequence
         sequence += 1
         path = _write_jpeg(tmp_path / f"{sequence:03d}_{kind}.jpg", frame)
+        # The watcher admits only a settled file. Warm the reduced grayscale
+        # preview first so this measurement covers Frame Gate work rather than
+        # the camera writer/Windows scanner racing the first file read.
+        gate._load_preview(path)
         outcomes.append(gate.evaluate(path, sequence, now=now))
         now += 0.150
 
